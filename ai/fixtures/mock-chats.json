@@ -1,0 +1,17 @@
+[
+  {
+    "id": "mock-chat-payment",
+    "title": "How can foreigners use Alipay?",
+    "language": "en",
+    "messages": [
+      {
+        "role": "user",
+        "content": "How can foreigners use Alipay or WeChat Pay in China?"
+      },
+      {
+        "role": "assistant",
+        "content": "Direct Answer\nForeign travelers can usually use Alipay or WeChat Pay by linking an international bank card, but they should set it up before or soon after arrival.\n\nPractical Steps\n1. Download Alipay and WeChat before your trip.\n2. Link an international Visa, Mastercard, or supported card.\n3. Complete identity verification if requested.\n4. Test a small payment after arrival.\n\nThings to Watch Out For\nSome small vendors may still prefer local payment flows, so keep a backup card or some cash.\n\nUseful Chinese Phrases\n请问可以用支付宝吗？\nCan I pay with Alipay?"
+      }
+    ]
+  }
+]

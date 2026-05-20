@@ -1,0 +1,49 @@
+# ChinaTrip API Skill
+
+## Applies To
+
+- Next.js Route Handlers.
+- Chat creation.
+- Message sending.
+- Save answer.
+- Share answer.
+- Public share fetch.
+
+## Rules
+
+- Keep model API keys on the server only.
+- Validate request payloads with Zod when implementing endpoints.
+- Use one consistent error shape:
+
+```ts
+{
+  error: {
+    code: string
+    message: string
+  }
+}
+```
+
+- Do not return raw provider errors to the client.
+- Use `anonymous_id` cookie for logged-out chat ownership.
+- Use Supabase Auth user identity for logged-in save behavior.
+- Share does not require login in Phase 1.
+- Save requires login.
+
+## Route Scope
+
+Phase 1 routes:
+
+```text
+POST /api/chats
+GET /api/chats
+GET /api/chats/:chatId
+POST /api/chats/:chatId/messages
+POST /api/saved-answers
+POST /api/shared-answers
+GET /api/share/:shareId
+```
+
+## API Design Rule
+
+Keep responses stable and client-friendly. React Query should be able to cache them with predictable query keys.
