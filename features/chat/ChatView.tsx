@@ -1,13 +1,13 @@
 "use client";
 
 import { ChatInput } from "@/components/ChatInput";
+import { LoginModal } from "@/components/LoginModal";
 import {
   AlertCircle,
   BriefcaseBusiness,
   ChevronDown,
   CirclePlus,
   Clock3,
-  Globe2,
   History,
   LogOut,
   Menu,
@@ -80,9 +80,11 @@ function BotBadge() {
 function Sidebar({
   onSelectChat,
   onClose,
+  onOpenLogin,
 }: {
   onSelectChat?: () => void;
   onClose?: () => void;
+  onOpenLogin: () => void;
 }) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
@@ -173,25 +175,38 @@ function Sidebar({
               aria-label="Close account menu"
             />
             <div className="absolute bottom-[4.4rem] right-5 z-20 w-40 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg shadow-slate-900/10">
-            <button
-              type="button"
-              onClick={() => setIsAccountMenuOpen(false)}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-400"
-            >
-              <LogOut className="h-4 w-4 text-slate-400" />
-              Log out
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsAccountMenuOpen(false)}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-400"
+              >
+                <LogOut className="h-4 w-4 text-slate-400" />
+                Log out
+              </button>
             </div>
           </>
         ) : null}
 
         <div className="flex items-center gap-3">
-          <UserAvatar />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-950">
-              Guest User
-            </p>
-            <p className="truncate text-xs text-slate-500">Sign in to save</p>
+          <div
+            onClick={onOpenLogin}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onOpenLogin();
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-xl text-left transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400"
+          >
+            <UserAvatar />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-slate-950">
+                Guest User
+              </p>
+              <p className="truncate text-xs text-slate-500">Sign in to save</p>
+            </div>
           </div>
           <button
             type="button"
@@ -212,7 +227,7 @@ function AiAnswerCard() {
   return (
     <div className="flex items-start gap-4">
       <BotBadge />
-      <article className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-6 text-[0.94rem] leading-7 text-slate-700 shadow-sm sm:p-7">
+      <article className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-5 text-[0.94rem] leading-7 text-slate-700 shadow-sm sm:p-7">
         <p>
           Absolutely! A 10-day trip to Beijing and Xi&apos;an is a fantastic
           introduction to China&apos;s rich history. Here is a breakdown of what
@@ -290,7 +305,7 @@ function ItineraryPreviewCard() {
   return (
     <div className="flex items-start gap-4">
       <BotBadge />
-      <article className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-6 text-[0.94rem] leading-7 text-slate-700 shadow-sm sm:p-7">
+      <article className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-5 text-[0.94rem] leading-7 text-slate-700 shadow-sm sm:p-7">
         <p>
           Here is a balanced 10-day itinerary focusing on the highlights of
           Beijing and Xi&apos;an:
@@ -323,6 +338,7 @@ function ItineraryPreviewCard() {
 
 export function ChatView() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [message, setMessage] = useState("");
 
   function handleSubmit() {
@@ -333,7 +349,7 @@ export function ChatView() {
     <main className="h-dvh overflow-hidden bg-slate-50 text-slate-950">
       <div className="flex h-full">
         <div className="hidden lg:block">
-          <Sidebar />
+          <Sidebar onOpenLogin={() => setIsLoginModalOpen(true)} />
         </div>
 
         {isDrawerOpen ? (
@@ -348,6 +364,7 @@ export function ChatView() {
               <Sidebar
                 onSelectChat={() => setIsDrawerOpen(false)}
                 onClose={() => setIsDrawerOpen(false)}
+                onOpenLogin={() => setIsLoginModalOpen(true)}
               />
             </div>
           </div>
@@ -374,6 +391,7 @@ export function ChatView() {
               </div>
             </div>
 
+            {/* Language switcher hidden for now; default UI language is English.
             <div className="group relative flex shrink-0">
               <button
                 type="button"
@@ -388,12 +406,13 @@ export function ChatView() {
                 Currently English only
               </div>
             </div>
+            */}
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-44 pt-12 sm:px-7 sm:pt-16">
             <div className="mx-auto w-full max-w-[52rem] space-y-8">
               <div className="flex items-start justify-end gap-0 sm:gap-4">
-                <div className="max-w-[42rem] rounded-2xl rounded-tr-sm bg-[rgba(104,52,0,0.88)] px-6 py-4 text-[0.94rem] leading-7 text-white shadow-sm">
+                <div className="max-w-[42rem] rounded-2xl rounded-tr-sm bg-[rgba(104,52,0,0.88)] px-4 py-3 text-[0.94rem] leading-7 text-white shadow-sm sm:px-6 sm:py-4">
                   I&apos;m planning a 10-day trip to China next month. I want to
                   visit Beijing and Xi&apos;an. Can you help me understand the
                   visa requirements for a US citizen and suggest a basic
@@ -419,7 +438,7 @@ export function ChatView() {
               </div>
 
               <div className="flex items-start justify-end gap-0 sm:gap-4">
-                <div className="max-w-[22rem] rounded-2xl rounded-tr-sm bg-[rgba(104,52,0,0.88)] px-5 py-3.5 text-[0.94rem] leading-6 text-white shadow-sm">
+                <div className="max-w-[22rem] rounded-2xl rounded-tr-sm bg-[rgba(104,52,0,0.88)] px-4 py-3 text-[0.94rem] leading-6 text-white shadow-sm sm:px-5 sm:py-3.5">
                   Please show me the 10-day itinerary.
                 </div>
                 <UserAvatar className="hidden sm:block" />
@@ -429,7 +448,7 @@ export function ChatView() {
             </div>
           </div>
 
-          <div className="pointer-events-none fixed bottom-0 right-0 left-0 z-20 bg-gradient-to-t from-white via-white to-white/70 px-4 pb-6 pt-6 lg:left-[17.125rem] sm:px-7">
+          <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-white via-white to-white/70 px-4 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-6 sm:px-7 lg:left-[17.125rem]">
             <div className="pointer-events-auto mx-auto w-full max-w-[52rem]">
               <ChatInput
                 value={message}
@@ -446,6 +465,10 @@ export function ChatView() {
           </div>
         </section>
       </div>
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
     </main>
   );
 }

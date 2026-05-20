@@ -52,7 +52,7 @@ export function ChatInput({
     <form onSubmit={handleSubmit} className={className}>
       <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg shadow-slate-900/8">
         <Pencil
-          className="mb-2.5 h-5 w-5 shrink-0 rotate-180 text-slate-400"
+          className="mb-2.5 h-5 w-5 shrink-0 rotate-270 text-slate-400"
           strokeWidth={2}
           aria-hidden="true"
         />
@@ -77,7 +77,7 @@ export function ChatInput({
         <button
           type="submit"
           disabled={!canSubmit}
-          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition focus-visible:ring-2 focus-visible:ring-slate-400 ${
+          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition focus-visible:ring-2 focus-visible:ring-slate-400 sm:h-10 sm:w-10 ${
             canSubmit
               ? "bg-[rgba(104,52,0,0.88)] text-white hover:bg-[rgba(86,40,0,0.96)]"
               : "cursor-not-allowed bg-[#0006] text-white"

@@ -2,8 +2,6 @@
 
 import {
   CarTaxiFront,
-  ChevronDown,
-  Globe2,
   Smartphone,
   TrainFront,
   Utensils,
@@ -13,6 +11,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { ChatInput } from "../../components/ChatInput";
+import { LoginModal } from "../../components/LoginModal";
 import { useState } from "react";
 
 const classicQuestions = [
@@ -59,6 +58,7 @@ const classicQuestions = [
 
 export function HomeView() {
   const [question, setQuestion] = useState("");
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   function handleSubmit() {
     // Handle submission
@@ -106,6 +106,7 @@ export function HomeView() {
           </Link>
 
           <nav className="flex shrink-0 items-center gap-3 sm:gap-4">
+            {/* Language switcher hidden for now; default UI language is English.
             <div className="group relative flex">
               <button
                 type="button"
@@ -120,8 +121,10 @@ export function HomeView() {
                 Currently English only
               </div>
             </div>
+            */}
             <button
               type="button"
+              onClick={() => setIsLoginModalOpen(true)}
               className="cursor-pointer rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 sm:px-5"
             >
               Log in
@@ -130,10 +133,10 @@ export function HomeView() {
         </header>
 
         <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center pb-20 pt-10 text-center sm:pt-16 lg:-mt-8 lg:pb-24">
-          <h1 className="max-w-5xl text-balance text-4xl font-semibold leading-[1.1] tracking-tight text-white sm:text-[4.45rem] lg:text-[5.5rem]">
+          <h1 className="max-w-5xl text-balance text-[2.5rem] font-semibold leading-[1.15] tracking-tight text-white sm:text-[4.45rem] lg:text-[5.5rem]">
             Your AI Travel Guide for China
           </h1>
-          <p className="mt-4 max-w-3xl text-[0.9rem] font-normal leading-relaxed text-white/80 sm:mt-6 sm:text-xl sm:leading-8">
+          <p className="mt-4 max-w-3xl text-[0.95rem] font-normal leading-relaxed text-white/80 sm:mt-6 sm:text-xl sm:leading-8">
             Ask practical questions about China travel, payments, transport,
             apps, food, and local tips. Get answers you can save and share.
           </p>
@@ -151,7 +154,7 @@ export function HomeView() {
                 key={item.label}
                 type="button"
                 onClick={() => setQuestion(item.question)}
-                className="inline-flex h-9 max-w-full cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3.5 text-[0.8rem] font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 sm:h-[44px] sm:gap-2.5 sm:px-5 sm:text-sm"
+                className="inline-flex h-10 max-w-full cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3.5 text-[0.85rem] font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 sm:h-[44px] sm:gap-2.5 sm:px-5 sm:text-sm"
               >
                 <item.Icon
                   className={`h-[16px] w-[16px] shrink-0 sm:h-[18px] sm:w-[18px] ${item.colorClass}`}
@@ -163,6 +166,10 @@ export function HomeView() {
           </div>
         </section>
       </div>
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
     </main>
   );
 }
