@@ -40,7 +40,7 @@ Mobile:
 - User messages align right.
 - Assistant messages align left.
 - Assistant actions appear below the assistant answer.
-- Save / Share / Copy must not overflow on narrow screens.
+- Share / Copy must not overflow on narrow screens.
 - Long chat lists should use `@tanstack/react-virtual`.
 
 ## Responsive QA

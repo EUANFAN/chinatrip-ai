@@ -7,5 +7,159 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Phase 1 keeps the schema as the planned data contract.
-// Migrations are intentionally deferred until feature implementation begins.
+enum Language {
+  en
+  zh
+}
+
+enum ChatStatus {
+  active
+  archived
+  deleted
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+enum MessageStatus {
+  pending
+  complete
+  failed
+}
+
+enum AiProvider {
+  mock
+  doubao
+  deepseek
+}
+
+model Profile {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id")
+  email     String?  @unique
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+  locale    Language @default(en)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  chats         Chat[]
+  sharedAnswers SharedAnswer[]
+
+  @@map("profiles")
+}
+
+model AnonymousSession {
+  id            String   @id @default(uuid()) @db.Uuid
+  anonymousId   String   @unique @map("anonymous_id")
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
+  lastActiveAt  DateTime @default(now()) @map("last_active_at")
+
+  chats         Chat[]
+  sharedAnswers SharedAnswer[]
+
+  @@map("anonymous_sessions")
+}
+
+model Chat {
+  id                 String      @id @default(uuid()) @db.Uuid
+  profileId          String?     @map("profile_id") @db.Uuid
+  anonymousSessionId String?     @map("anonymous_session_id") @db.Uuid
+  title              String
+  language           Language    @default(en)
+  status             ChatStatus  @default(active)
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+  lastMessageAt      DateTime    @default(now()) @map("last_message_at")
+
+  profile          Profile?          @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  anonymousSession AnonymousSession? @relation(fields: [anonymousSessionId], references: [id], onDelete: SetNull)
+  messages         Message[]
+  sharedAnswers    SharedAnswer[]
+  aiUsageLogs      AiUsageLog[]
+
+  @@index([profileId, lastMessageAt])
+  @@index([anonymousSessionId, lastMessageAt])
+  @@map("chats")
+}
+
+model Message {
+  id           String        @id @default(uuid()) @db.Uuid
+  chatId       String        @map("chat_id") @db.Uuid
+  role         MessageRole
+  status       MessageStatus @default(complete)
+  sequence     Int
+  content      String
+  errorCode    String?       @map("error_code")
+  errorMessage String?       @map("error_message")
+  metadata     Json?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  sharedAsUserMessage      SharedAnswer[] @relation("SharedAnswerUserMessage")
+  sharedAsAssistantMessage SharedAnswer[] @relation("SharedAnswerAssistantMessage")
+  aiUsageLogs              AiUsageLog[]
+
+  @@unique([chatId, sequence])
+  @@index([chatId, createdAt])
+  @@map("messages")
+}
+
+model SharedAnswer {
+  id                 String    @id @default(uuid()) @db.Uuid
+  chatId             String    @map("chat_id") @db.Uuid
+  userMessageId      String    @map("user_message_id") @db.Uuid
+  assistantMessageId String    @map("assistant_message_id") @db.Uuid
+  profileId          String?   @map("profile_id") @db.Uuid
+  anonymousSessionId String?   @map("anonymous_session_id") @db.Uuid
+  shareSlug          String    @unique @map("share_slug")
+  question           String
+  answer             String
+  isPublic           Boolean   @default(true) @map("is_public")
+  viewCount          Int       @default(0) @map("view_count")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  revokedAt          DateTime? @map("revoked_at")
+
+  chat             Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userMessage      Message           @relation("SharedAnswerUserMessage", fields: [userMessageId], references: [id], onDelete: Cascade)
+  assistantMessage Message           @relation("SharedAnswerAssistantMessage", fields: [assistantMessageId], references: [id], onDelete: Cascade)
+  profile          Profile?          @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  anonymousSession AnonymousSession? @relation(fields: [anonymousSessionId], references: [id], onDelete: SetNull)
+
+  @@index([assistantMessageId])
+  @@index([profileId, createdAt])
+  @@index([anonymousSessionId, createdAt])
+  @@map("shared_answers")
+}
+
+model AiUsageLog {
+  id             String     @id @default(uuid()) @db.Uuid
+  chatId         String     @map("chat_id") @db.Uuid
+  messageId      String?    @map("message_id") @db.Uuid
+  provider       AiProvider
+  model          String
+  promptVersion  String     @default("v1") @map("prompt_version")
+  inputTokens    Int?       @map("input_tokens")
+  outputTokens   Int?       @map("output_tokens")
+  costEstimate   Decimal?   @map("cost_estimate") @db.Decimal(12, 6)
+  latencyMs      Int?       @map("latency_ms")
+  success        Boolean
+  fallbackUsed   Boolean    @default(false) @map("fallback_used")
+  errorMessage   String?    @map("error_message")
+  metadata       Json?
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([chatId, createdAt])
+  @@index([messageId])
+  @@map("ai_usage_logs")
+}

@@ -15,8 +15,6 @@
 - Chat page can send a follow-up.
 - Desktop sidebar opens, closes, and reopens.
 - Mobile sidebar opens as a drawer and closes.
-- Save prompts login when logged out.
-- Logged-in user can save an answer.
 - Share creates a public link.
 - Share page displays one question-answer pair.
 - Copy writes answer content to clipboard.

@@ -12,7 +12,6 @@ import {
   Menu,
   MoreHorizontal,
   Share2,
-  Bookmark,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -284,20 +283,18 @@ function AssistantMessageBubble({
   content,
   onCopy,
   onShare,
-  onSave,
 }: {
   status?: ChatMessage["status"];
   content: string;
   onCopy: (content: string) => void;
   onShare: () => void;
-  onSave: () => void;
 }) {
   const isLoading = status === "loading";
 
   return (
     <div className="flex items-start gap-4">
       <BotBadge />
-      <article className="w-full rounded-[1.25rem] rounded-tl-sm border border-[#E6D8C7] bg-[#FFFDF9] p-5 text-[0.94rem] leading-7 text-[#26384D] shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-7">
+      <article className="w-full rounded-[1.25rem] rounded-tl-sm border border-[#E6D8C7] bg-white p-5 text-[0.94rem] leading-7 text-[#26384D] shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-7">
         {isLoading ? (
           <div className="flex items-center gap-3 text-[#74685C]">
             <span className="text-sm font-medium">Generating answer</span>
@@ -311,12 +308,6 @@ function AssistantMessageBubble({
           <>
             <div className="whitespace-pre-line">{content}</div>
             <div className="mt-6 flex flex-wrap gap-2 border-t border-[#E6D8C7]/70 pt-4">
-              <MessageActionButton
-                Icon={Bookmark}
-                label="Save"
-                tone="save"
-                onClick={onSave}
-              />
               <MessageActionButton
                 Icon={Share2}
                 label="Share"
@@ -341,12 +332,10 @@ function MessageItem({
   message,
   onCopy,
   onShare,
-  onSave,
 }: {
   message: ChatMessage;
   onCopy: (content: string) => void;
   onShare: () => void;
-  onSave: () => void;
 }) {
   if (message.role === "user") {
     return <UserMessageBubble content={message.content} />;
@@ -358,7 +347,6 @@ function MessageItem({
       content={message.content}
       onCopy={onCopy}
       onShare={onShare}
-      onSave={onSave}
     />
   );
 }
@@ -509,10 +497,6 @@ export function ChatView() {
     void copyText(shareUrl, "Share link copied");
   }
 
-  function handleSave() {
-    setIsLoginModalOpen(true);
-  }
-
   function handleNewChat() {
     router.push("/");
   }
@@ -599,7 +583,6 @@ export function ChatView() {
                       message={chatMessage}
                       onCopy={handleCopy}
                       onShare={handleShare}
-                      onSave={handleSave}
                     />
                   </div>
                 );

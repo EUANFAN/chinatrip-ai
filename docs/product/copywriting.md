@@ -77,8 +77,6 @@ Ask a follow-up question...
 Actions:
 
 ```text
-Save
-Saved
 Share
 Share link copied
 Copy
@@ -156,4 +154,4 @@ ChinaTrip AI
 - Avoid traditional travel agency tone.
 - Avoid overpromising real-time policy accuracy.
 - Use "traveling in China" and "China travel" for SEO.
-- Make Save and Share visible as product value, but do not over-explain them.
+- Make Share and Copy visible as product value, but do not over-explain them.

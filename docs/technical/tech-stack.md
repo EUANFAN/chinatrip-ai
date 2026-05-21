@@ -25,13 +25,13 @@ Vercel
 |---|---|---|
 | Web app | Next.js | Home, chat, share page, API Route Handlers |
 | UI | React | Inputs, message stream, modal, toast, sidebar |
-| Types | TypeScript | Chat, Message, SavedAnswer, SharedAnswer contracts |
+| Types | TypeScript | Chat, Message, SharedAnswer contracts |
 | Styling | Tailwind CSS | Fast responsive UI implementation |
 | Auth | Supabase Auth | Google login, logout, current user |
 | Local DB | Docker PostgreSQL | Local development and migration validation |
 | Production DB | Supabase PostgreSQL | Production persistence |
 | ORM | Prisma | Schema, migrations, seed, server queries |
-| Server state | React Query | Chat, messages, history, save, share requests |
+| Server state | React Query | Chat, messages, history, share requests |
 | UI state | useState / Zustand | Input, toast, language, sidebar, modal |
 | Virtual list | @tanstack/react-virtual | Long chat message performance |
 | AI service | AI Provider Service | Doubao, DeepSeek, fallback, logging |
@@ -53,7 +53,7 @@ Supabase Auth handles Google OAuth and session management. The project should no
 
 ### PostgreSQL + Prisma
 
-PostgreSQL stores chats, messages, saved answers, shared answers, and AI usage logs. Prisma provides type-safe server-side access and migration management.
+PostgreSQL stores chats, messages, shared answers, and AI usage logs. Prisma provides type-safe server-side access and migration management.
 
 Local development uses Docker PostgreSQL. Production uses Supabase PostgreSQL.
 

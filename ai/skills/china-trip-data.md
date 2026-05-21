@@ -16,7 +16,6 @@ profiles
 anonymous_sessions
 chats
 messages
-saved_answers
 shared_answers
 ai_usage_logs
 ```
@@ -47,5 +46,5 @@ Seed data should support:
 
 - Anonymous chats belong to `anonymous_id`.
 - Logged-in chats may belong to `user_id`.
-- Save requires `user_id`.
 - Share is public and does not require login in Phase 1.
+- `saved_answers` is deferred until the product has a saved answers page or a clear save retrieval flow.

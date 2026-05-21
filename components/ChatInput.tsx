@@ -58,7 +58,7 @@ export function ChatInput({
       <div
         className={`flex items-end gap-3 rounded-2xl border p-3 backdrop-blur-md transition ${
           isChatVariant
-            ? "border-[#E2D4C5] bg-[#FFFDF9]/92 shadow-[0_18px_50px_rgba(20,36,58,0.10)]"
+            ? "border-[#E2D4C5] bg-white shadow-[0_18px_50px_rgba(20,36,58,0.10)]"
             : "border-slate-200 bg-white shadow-lg shadow-slate-900/8"
         }`}
       >

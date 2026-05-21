@@ -2,7 +2,7 @@
 
 ChinaTrip AI is a browser-based AI travel assistant for foreign travelers visiting China.
 
-It helps users ask practical questions about China travel, payments, transport, apps, food, local tips, and short itineraries. Answers should be clear, actionable, saveable, and shareable.
+It helps users ask practical questions about China travel, payments, transport, apps, food, local tips, and short itineraries. Answers should be clear, actionable, copyable, and shareable.
 
 ## Current Phase
 
@@ -27,8 +27,7 @@ Phase 1 validates the core product loop:
 Home question
 → AI answer
 → Follow-up question
-→ Save answer
-→ Share answer
+→ Copy or Share answer
 → New user asks from share page
 ```
 
@@ -42,7 +41,6 @@ Phase 1 includes:
 - Chat history.
 - New chat.
 - Google login.
-- Save answer.
 - Share answer.
 - Copy answer.
 - Share page.
@@ -55,6 +53,7 @@ Phase 1 does not include:
 
 - Question limits.
 - Credits or payment.
+- Save answer or bookmarks.
 - RAG.
 - Maps.
 - Attraction detail pages.

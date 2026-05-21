@@ -19,7 +19,6 @@ Primary validation points:
 - Whether users ask their first China travel question.
 - Whether AI answers feel clear, practical, and useful.
 - Whether users continue asking follow-up questions.
-- Whether users save useful answers.
 - Whether users share answers with others.
 
 Core loop:
@@ -29,8 +28,7 @@ Home question
 → Chat page
 → AI answer
 → Follow-up question
-→ Save answer
-→ Share answer
+→ Copy or Share answer
 → New user asks from share page
 ```
 
@@ -50,7 +48,6 @@ Phase 1 includes:
 - New chat.
 - Google login.
 - User avatar and logout.
-- Save answer.
 - Share answer.
 - Copy answer.
 - Share page.
@@ -85,6 +82,9 @@ Phase 1 does not include:
 - Credits.
 - Payment or recharge.
 - Upgrade page.
+- Save answer.
+- Saved answers page.
+- Saved answer management.
 - RAG.
 - pgvector.
 - Maps.
@@ -149,7 +149,7 @@ The chat page includes:
 - Chat Header.
 - Message List.
 - Chat Input.
-- Save / Share / Copy.
+- Share / Copy.
 
 Sidebar behavior:
 
@@ -165,7 +165,7 @@ Message behavior:
 
 - User messages align right.
 - AI messages align left.
-- AI messages show Save / Share / Copy actions.
+- AI messages show Share / Copy actions.
 - AI generation shows a loading state.
 - Long conversations use a virtualized message list.
 

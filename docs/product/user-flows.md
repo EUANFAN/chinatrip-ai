@@ -29,25 +29,6 @@ User types follow-up question
 → API writes ai_usage_logs
 ```
 
-## Save Answer Flow
-
-```text
-User clicks Save below an AI message
-→ App checks current user
-→ If not logged in, open Google login prompt
-→ If logged in, API saves question + answer
-→ Button changes to Saved
-→ Toast shows Saved
-```
-
-Save scope:
-
-```text
-One question + one AI answer
-```
-
-The MVP does not save or share full chat transcripts.
-
 ## Share Answer Flow
 
 ```text
@@ -60,6 +41,14 @@ User clicks Share below an AI message
 ```
 
 Share does not require login in Phase 1.
+
+Share scope:
+
+```text
+One question + one AI answer
+```
+
+The MVP does not share full chat transcripts.
 
 ## Copy Answer Flow
 
@@ -88,14 +77,13 @@ Google login can be triggered by:
 
 - Header login button.
 - Sidebar user area.
-- Clicking Save while logged out.
 
 Login success behavior:
 
 ```text
 User returns to current page
 → Header / Sidebar show avatar
-→ User can save answers
+→ User can view their chat history
 ```
 
 Phase 1 does not require guest-to-user chat migration, but the data model should allow future migration by preserving `anonymous_id`.

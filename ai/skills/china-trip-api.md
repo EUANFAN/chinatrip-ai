@@ -5,7 +5,6 @@
 - Next.js Route Handlers.
 - Chat creation.
 - Message sending.
-- Save answer.
 - Share answer.
 - Public share fetch.
 
@@ -26,9 +25,9 @@
 
 - Do not return raw provider errors to the client.
 - Use `anonymous_id` cookie for logged-out chat ownership.
-- Use Supabase Auth user identity for logged-in save behavior.
+- Use Supabase Auth user identity for logged-in chat history behavior.
 - Share does not require login in Phase 1.
-- Save requires login.
+- Copy is client-side only and does not call the backend.
 
 ## Route Scope
 
@@ -39,7 +38,6 @@ POST /api/chats
 GET /api/chats
 GET /api/chats/:chatId
 POST /api/chats/:chatId/messages
-POST /api/saved-answers
 POST /api/shared-answers
 GET /api/share/:shareId
 ```
