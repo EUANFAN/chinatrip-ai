@@ -10,6 +10,7 @@ interface ChatInputProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  variant?: "hero" | "chat";
 }
 
 export function ChatInput({
@@ -19,8 +20,10 @@ export function ChatInput({
   placeholder = "Ask about your China trip...",
   className = "",
   disabled = false,
+  variant = "hero",
 }: ChatInputProps) {
   const canSubmit = !disabled && value.trim().length > 0;
+  const isChatVariant = variant === "chat";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -52,15 +55,27 @@ export function ChatInput({
 
   return (
     <form onSubmit={handleSubmit} className={className}>
-      <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg shadow-slate-900/8">
+      <div
+        className={`flex items-end gap-3 rounded-2xl border p-3 backdrop-blur-md transition ${
+          isChatVariant
+            ? "border-[#E2D4C5] bg-[#FFFDF9]/92 shadow-[0_18px_50px_rgba(20,36,58,0.10)]"
+            : "border-slate-200 bg-white shadow-lg shadow-slate-900/8"
+        }`}
+      >
         <Pencil
-          className="mb-2.5 h-5 w-5 shrink-0 rotate-270 text-slate-400"
+          className={`mb-2.5 h-5 w-5 shrink-0 rotate-270 ${
+            isChatVariant ? "text-[#9A8D80]" : "text-slate-400"
+          }`}
           strokeWidth={2}
           aria-hidden="true"
         />
         <div className="relative mb-2 flex-1">
           {value.length === 0 && (
-            <div className="pointer-events-none absolute left-0 top-0 text-[0.95rem] leading-6 text-slate-400">
+            <div
+              className={`pointer-events-none absolute left-0 top-0 text-[0.95rem] leading-6 ${
+                isChatVariant ? "text-[#9A8D80]" : "text-slate-400"
+              }`}
+            >
               <span className="truncate">{placeholder}</span>
             </div>
           )}
@@ -71,7 +86,11 @@ export function ChatInput({
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            className={`block max-h-[120px] w-full resize-none bg-transparent py-0 text-[0.95rem] leading-6 text-slate-900 outline-none disabled:cursor-not-allowed disabled:text-slate-500 ${
+            className={`block max-h-[120px] w-full resize-none bg-transparent py-0 text-[0.95rem] leading-6 outline-none disabled:cursor-not-allowed ${
+              isChatVariant
+                ? "text-[#26384D] disabled:text-[#9A8D80]"
+                : "text-slate-900 disabled:text-slate-500"
+            } ${
               isOverflowing ? "overflow-y-auto" : "overflow-hidden"
             }`}
             aria-label={placeholder}
@@ -80,10 +99,12 @@ export function ChatInput({
         <button
           type="submit"
           disabled={!canSubmit}
-          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition focus-visible:ring-2 focus-visible:ring-slate-400 sm:h-10 sm:w-10 ${
+          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition focus-visible:ring-2 sm:h-10 sm:w-10 ${
             canSubmit
-              ? "bg-[rgba(104,52,0,0.88)] text-white hover:bg-[rgba(86,40,0,0.96)]"
-              : "cursor-not-allowed bg-[#0006] text-white"
+              ? "bg-[linear-gradient(135deg,#8A552B,#14243A)] text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10)] hover:brightness-105 focus-visible:ring-[#D49A52]/45"
+              : isChatVariant
+                ? "cursor-not-allowed bg-[#B7ADA3] text-white focus-visible:ring-[#B7ADA3]/35"
+                : "cursor-not-allowed bg-[#0006] text-white focus-visible:ring-slate-400"
           }`}
           aria-label="Send message"
         >

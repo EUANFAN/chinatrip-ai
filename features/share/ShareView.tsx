@@ -133,12 +133,12 @@ export function ShareView() {
   }
 
   return (
-    <main className="min-h-dvh bg-slate-50 text-slate-950">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-7">
+    <main className="min-h-dvh bg-[#F8F5EF] bg-[linear-gradient(135deg,#F8F5EF_0%,#EEF4F6_52%,#F7F0E6_100%)] text-[#172033]">
+      <header className="sticky top-0 z-30 border-b border-[#E6D8C7] bg-white/76 px-4 py-3 shadow-[0_8px_30px_rgba(20,36,58,0.04)] backdrop-blur-xl sm:px-7">
         <div className="mx-auto flex w-full max-w-[60rem] items-center justify-between gap-3">
           <Link
             href="/"
-            className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="flex min-w-0 items-center gap-3 rounded-2xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
             aria-label="ChinaTrip AI home"
           >
             <Image
@@ -147,16 +147,16 @@ export function ShareView() {
               width={40}
               height={40}
               priority
-              className="h-9 w-9 shrink-0 rounded-full bg-white object-cover shadow-sm ring-1 ring-slate-200"
+              className="h-9 w-9 shrink-0 rounded-full bg-[#FFFDF9] object-cover shadow-sm ring-1 ring-[#E6D8C7]"
             />
-            <span className="truncate text-lg font-semibold tracking-tight sm:text-xl">
+            <span className="truncate text-lg font-semibold tracking-tight text-[#172033] sm:text-xl">
               ChinaTrip AI
             </span>
           </Link>
 
           <Link
             href="/"
-            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-[rgba(104,52,0,0.88)] px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[rgba(86,40,0,0.96)] focus-visible:ring-2 focus-visible:ring-slate-400 sm:px-4"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#8A552B,#14243A)] px-3 text-sm font-semibold text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10)] transition hover:brightness-105 focus-visible:ring-2 focus-visible:ring-[#D49A52]/45 sm:px-4"
           >
             <span className="hidden sm:inline">Ask your own question</span>
             <span className="sm:hidden">Ask</span>
@@ -166,40 +166,40 @@ export function ShareView() {
       </header>
 
       <div className="mx-auto flex w-full max-w-[60rem] flex-col gap-8 px-4 py-8 sm:px-7 sm:py-12">
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 sm:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
-            <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700">
+        <section className="rounded-[1.25rem] border border-[#E6D8C7] bg-[#FFFDF9] p-5 shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E6D8C7]/70 pb-5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#E6D8C7] bg-[#EEF4F6] px-3 py-1.5 text-sm font-medium text-[#8A552B]">
               <Share2 className="h-4 w-4" />
               Shared travel answer
             </div>
-            <span className="text-sm text-slate-500">
+            <span className="text-sm text-[#756A60]">
               {formatSharedDate(sharedAnswer?.createdAt)}
             </span>
           </div>
 
           <div className="mt-7">
-            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-slate-400">
+            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#9A8D80]">
               Question
             </p>
-            <h1 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-4xl">
+            <h1 className="mt-3 w-full rounded-[1.25rem] rounded-tr-sm bg-[linear-gradient(135deg,#8A552B,#14243A)] px-4 py-3 text-2xl font-bold leading-tight tracking-tight text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10)] sm:px-6 sm:py-4 sm:text-4xl">
               {sharedQuestionText}
             </h1>
           </div>
 
-          <article className="mt-7 rounded-2xl rounded-tl-sm border border-slate-200 bg-slate-50 p-5 text-[0.94rem] leading-7 text-slate-700 sm:p-7">
-            <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+          <article className="mt-7 rounded-[1.25rem] rounded-tl-sm border border-[#E6D8C7] bg-[#FFFDF9] p-5 text-[0.94rem] leading-7 text-[#26384D] shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-7">
+            <div className="flex items-center gap-3 border-b border-[#E6D8C7]/70 pb-4">
               <Image
                 src="/logo-img.png"
                 alt="ChinaTrip AI"
                 width={32}
                 height={32}
-                className="h-8 w-8 rounded-full bg-white object-cover ring-1 ring-slate-200"
+                className="h-8 w-8 rounded-full bg-[#FFFDF9] object-cover ring-1 ring-[#E6D8C7]"
               />
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-950">
+                <p className="truncate text-sm font-semibold text-[#172033]">
                   ChinaTrip AI
                 </p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-xs text-[#756A60]">
                   Practical guidance for China travel
                 </p>
               </div>
@@ -211,7 +211,7 @@ export function ShareView() {
             <button
               type="button"
               onClick={handleCopyAnswer}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E6D8C7] bg-[#FFFDF9] px-3 text-sm font-medium text-[#6F6258] transition hover:bg-[#F3EEE7] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
             >
               <Copy className="h-4 w-4 text-amber-600" />
               Copy answer
@@ -219,7 +219,7 @@ export function ShareView() {
             <button
               type="button"
               onClick={handleCopyLink}
-              className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E6D8C7] bg-[#FFFDF9] px-3 text-sm font-medium text-[#6F6258] transition hover:bg-[#F3EEE7] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
             >
               <ExternalLink className="h-4 w-4 text-sky-600" />
               Copy link
@@ -230,10 +230,10 @@ export function ShareView() {
         {relatedPairs.length > 0 ? (
           <section aria-labelledby="related-questions">
             <div className="mb-4 flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-slate-400" />
+              <MessageCircle className="h-5 w-5 text-[#9A8D80]" />
               <h2
                 id="related-questions"
-                className="text-base font-semibold text-slate-950"
+                className="text-base font-semibold text-[#14243A]"
               >
                 Related travel context
               </h2>
@@ -243,12 +243,12 @@ export function ShareView() {
               {relatedPairs.map((pair) => (
                 <article
                   key={pair.question.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-900/5"
+                  className="rounded-xl border border-[#E6D8C7] bg-[#FFFDF9] p-4 shadow-[0_18px_45px_rgba(20,36,58,0.06)]"
                 >
-                  <h3 className="line-clamp-2 text-sm font-semibold leading-6 text-slate-950">
+                  <h3 className="line-clamp-2 text-sm font-semibold leading-6 text-[#172033]">
                     {pair.question.content}
                   </h3>
-                  <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-600">
+                  <p className="mt-3 line-clamp-4 text-sm leading-6 text-[#6F6258]">
                     {previewText(pair.answer.content)}
                   </p>
                 </article>
@@ -257,12 +257,12 @@ export function ShareView() {
           </section>
         ) : null}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 sm:p-7">
+        <section className="rounded-[1.25rem] border border-[#E6D8C7] bg-[#FFFDF9] p-5 shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-7">
           <div className="mb-5">
-            <h2 className="text-xl font-bold tracking-tight text-slate-950">
+            <h2 className="text-xl font-bold tracking-tight text-[#14243A]">
               Ask your own China travel question
             </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
+            <p className="mt-2 text-sm leading-6 text-[#756A60]">
               Start a new chat with ChinaTrip AI and get practical answers for
               your itinerary, apps, payments, transport, and food.
             </p>
@@ -277,7 +277,7 @@ export function ShareView() {
       </div>
 
       {toast ? (
-        <div className="fixed bottom-6 left-1/2 z-50 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-900/20">
+        <div className="fixed bottom-6 left-1/2 z-50 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#172033] px-4 py-2 text-sm font-medium text-white shadow-lg shadow-[#172033]/20">
           <Check className="h-4 w-4 text-emerald-300" />
           {toast}
         </div>
