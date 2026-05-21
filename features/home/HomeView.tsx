@@ -2,23 +2,27 @@
 
 import {
   CarTaxiFront,
+  Clock,
+  Luggage,
+  MapPinned,
   Smartphone,
   TrainFront,
   Utensils,
   WalletCards,
-  Wifi,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChatInput } from "../../components/ChatInput";
 import { LoginModal } from "../../components/LoginModal";
 import { useState } from "react";
 
+const LAST_QUESTION_KEY = "chinatrip:lastQuestion";
+
 const classicQuestions = [
   {
-    label: "Paying in China",
-    question:
-      "How can I pay in China with Alipay, WeChat Pay, or an international card?",
+    label: "Alipay & WeChat Pay",
+    question: "How can foreigners use Alipay or WeChat Pay in China?",
     Icon: WalletCards,
     colorClass: "text-blue-400",
   },
@@ -29,23 +33,21 @@ const classicQuestions = [
     colorClass: "text-purple-400",
   },
   {
-    label: "Internet & SIM",
-    question:
-      "How can I get mobile data, eSIM, VPN, or Wi-Fi access in China?",
-    Icon: Wifi,
+    label: "3-day Beijing trip",
+    question: "Plan a 3-day Beijing trip for a first-time visitor.",
+    Icon: MapPinned,
     colorClass: "text-emerald-400",
   },
   {
     label: "Taxi & Didi",
-    question: "How do I take a taxi or use Didi in China as a foreigner?",
+    question: "How do I take a taxi or use Didi in China?",
     Icon: CarTaxiFront,
     colorClass: "text-amber-400",
   },
   {
-    label: "High-speed trains",
-    question:
-      "How can foreign tourists book and take high-speed trains in China?",
-    Icon: TrainFront,
+    label: "First trip prep",
+    question: "What should I prepare before my first trip to China?",
+    Icon: Luggage,
     colorClass: "text-red-400",
   },
   {
@@ -54,14 +56,38 @@ const classicQuestions = [
     Icon: Utensils,
     colorClass: "text-orange-400",
   },
+  {
+    label: "10 hours in Shanghai",
+    question: "I have 10 hours in Shanghai. What can I do?",
+    Icon: Clock,
+    colorClass: "text-cyan-400",
+  },
+  {
+    label: "High-speed trains",
+    question: "Can foreign tourists use high-speed trains in China?",
+    Icon: TrainFront,
+    colorClass: "text-rose-400",
+  },
 ];
 
 export function HomeView() {
+  const router = useRouter();
   const [question, setQuestion] = useState("");
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
+  function submitQuestion(value: string) {
+    const trimmedQuestion = value.trim();
+
+    if (!trimmedQuestion) {
+      return;
+    }
+
+    window.sessionStorage.setItem(LAST_QUESTION_KEY, trimmedQuestion);
+    router.push("/chat/mock");
+  }
+
   function handleSubmit() {
-    // Handle submission
+    submitQuestion(question);
   }
 
   return (
@@ -106,22 +132,6 @@ export function HomeView() {
           </Link>
 
           <nav className="flex shrink-0 items-center gap-3 sm:gap-4">
-            {/* Language switcher hidden for now; default UI language is English.
-            <div className="group relative flex">
-              <button
-                type="button"
-                className="flex cursor-pointer items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-sm font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 sm:gap-2 sm:px-4"
-                aria-label="Language selector"
-              >
-                <Globe2 className="h-[18px] w-[18px]" strokeWidth={2} />
-                <span className="hidden sm:inline-block">English</span>
-                <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
-              </button>
-              <div className="pointer-events-none absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/80 px-2.5 py-1.5 text-xs text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                Currently English only
-              </div>
-            </div>
-            */}
             <button
               type="button"
               onClick={() => setIsLoginModalOpen(true)}

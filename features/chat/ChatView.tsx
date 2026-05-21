@@ -2,56 +2,34 @@
 
 import { ChatInput } from "@/components/ChatInput";
 import { LoginModal } from "@/components/LoginModal";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  AlertCircle,
-  BriefcaseBusiness,
-  ChevronDown,
+  Check,
   CirclePlus,
-  Clock3,
+  Copy,
   History,
   LogOut,
   Menu,
   MoreHorizontal,
+  Share2,
+  Bookmark,
   X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-
-const chatHistory = [
-  {
-    id: "beijing-xian",
-    title: "Planning trip to Beijing & Xi'an",
-    preview: "Visa requirements and a 10-day itinerary...",
-    active: true,
-  },
-  {
-    id: "alipay-tourcard",
-    title: "Setting up Alipay",
-    preview: "How can I pay in China with a foreign card?",
-  },
-  {
-    id: "train-booking",
-    title: "High-speed train booking",
-    preview: "Can foreign tourists book trains online?",
-  },
-  {
-    id: "translation-apps",
-    title: "Translation apps",
-    preview: "Which apps work best for signs and menus?",
-  },
-  {
-    id: "local-food",
-    title: "Local food tips",
-    preview: "What should I order if I do not speak Chinese?",
-  },
-];
-
-const promptChips = [
-  "Show me the 10-day itinerary",
-  "How to set up Alipay?",
-  "Do I need a VPN?",
-];
+import { useRouter } from "next/navigation";
+import { ComponentType, SVGProps, useEffect, useRef, useState } from "react";
+import {
+  ChatMessage,
+  DEFAULT_QUESTION,
+  LAST_QUESTION_KEY,
+  MockChat,
+  createChatTitle,
+  createInitialMockChat,
+  createMessage,
+  generateMockAnswer,
+  mockHistoryItems,
+} from "./mock-chat";
 
 function UserAvatar({ className = "" }: { className?: string }) {
   return (
@@ -78,15 +56,28 @@ function BotBadge() {
 }
 
 function Sidebar({
+  currentTitle,
+  onNewChat,
   onSelectChat,
   onClose,
   onOpenLogin,
 }: {
+  currentTitle: string;
+  onNewChat: () => void;
   onSelectChat?: () => void;
   onClose?: () => void;
   onOpenLogin: () => void;
 }) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const chatHistory = [
+    {
+      id: "current-chat",
+      title: currentTitle,
+      preview: "Current mock conversation",
+      active: true,
+    },
+    ...mockHistoryItems,
+  ];
 
   return (
     <aside className="flex h-full w-[17.125rem] max-w-[86vw] shrink-0 flex-col border-r border-slate-200 bg-white text-slate-950">
@@ -124,13 +115,13 @@ function Sidebar({
       <div className="min-h-0 flex-1 px-4 py-5">
         <button
           type="button"
+          onClick={onNewChat}
           className="flex h-11 w-full items-center justify-between rounded-xl bg-[rgba(104,52,0,0.88)] px-4 text-left text-sm font-semibold text-white shadow-sm transition hover:bg-[rgba(86,40,0,0.96)] focus-visible:ring-2 focus-visible:ring-slate-400"
         >
           <span className="inline-flex items-center gap-2">
             <CirclePlus className="h-4.5 w-4.5" />
             New Chat
           </span>
-          <ChevronDown className="h-4 w-4 text-white/55" />
         </button>
 
         <nav className="mt-5 max-h-[calc(100dvh-15rem)] space-y-1 overflow-y-auto pr-1">
@@ -140,18 +131,20 @@ function Sidebar({
               type="button"
               onClick={onSelectChat}
               className={`group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition focus-visible:ring-2 focus-visible:ring-slate-400 ${
-                chat.active ? "bg-slate-100" : "hover:bg-slate-50"
+                chat.id === "current-chat" ? "bg-slate-100" : "hover:bg-slate-50"
               }`}
             >
               <History
                 className={`h-4.5 w-4.5 shrink-0 ${
-                  chat.active ? "text-slate-950" : "text-slate-400"
+                  chat.id === "current-chat" ? "text-slate-950" : "text-slate-400"
                 }`}
               />
               <span className="min-w-0 flex-1">
                 <span
                   className={`block truncate text-sm font-medium ${
-                    chat.active ? "text-slate-950" : "text-slate-700"
+                    chat.id === "current-chat"
+                      ? "text-slate-950"
+                      : "text-slate-700"
                   }`}
                 >
                   {chat.title}
@@ -223,133 +216,313 @@ function Sidebar({
   );
 }
 
-function AiAnswerCard() {
+function UserMessageBubble({ content }: { content: string }) {
+  return (
+    <div className="flex items-start justify-end gap-0 sm:gap-4">
+      <div className="max-w-[42rem] whitespace-pre-line rounded-2xl rounded-tr-sm bg-[rgba(104,52,0,0.88)] px-4 py-3 text-[0.94rem] leading-7 text-white shadow-sm sm:px-6 sm:py-4">
+        {content}
+      </div>
+      <UserAvatar className="hidden sm:block" />
+    </div>
+  );
+}
+
+type MessageActionTone = "save" | "share" | "copy";
+
+const actionToneClasses: Record<
+  MessageActionTone,
+  { iconWrap: string; icon: string }
+> = {
+  save: {
+    iconWrap: "bg-emerald-50",
+    icon: "text-emerald-600",
+  },
+  share: {
+    iconWrap: "bg-sky-50",
+    icon: "text-sky-600",
+  },
+  copy: {
+    iconWrap: "bg-amber-50",
+    icon: "text-amber-600",
+  },
+};
+
+function MessageActionButton({
+  Icon,
+  label,
+  tone,
+  onClick,
+}: {
+  Icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  tone: MessageActionTone;
+  onClick: () => void;
+}) {
+  const toneClasses = actionToneClasses[tone];
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-2.5 pr-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-400"
+    >
+      <span
+        className={`inline-flex h-6 w-6 items-center justify-center rounded-full ${toneClasses.iconWrap}`}
+      >
+        <Icon className={`h-3.5 w-3.5 ${toneClasses.icon}`} />
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function AssistantMessageBubble({
+  status,
+  content,
+  onCopy,
+  onShare,
+  onSave,
+}: {
+  status?: ChatMessage["status"];
+  content: string;
+  onCopy: (content: string) => void;
+  onShare: () => void;
+  onSave: () => void;
+}) {
+  const isLoading = status === "loading";
+
   return (
     <div className="flex items-start gap-4">
       <BotBadge />
       <article className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-5 text-[0.94rem] leading-7 text-slate-700 shadow-sm sm:p-7">
-        <p>
-          Absolutely! A 10-day trip to Beijing and Xi&apos;an is a fantastic
-          introduction to China&apos;s rich history. Here is a breakdown of what
-          you need to know:
-        </p>
-
-        <section className="mt-6">
-          <h3 className="flex items-center gap-3 text-sm font-bold text-slate-950">
-            <Clock3 className="h-4 w-4 text-slate-500" />
-            Visa Requirements (US Citizen)
-          </h3>
-          <p className="mt-4">
-            Yes, as a US citizen, you{" "}
-            <strong className="font-bold text-slate-950">
-              will need an L Visa (Tourist Visa)
-            </strong>{" "}
-            before you travel. China currently does not offer visa-free entry
-            for US citizens for general tourism.
-          </p>
-          <ul className="mt-4 list-disc space-y-1.5 pl-6 text-slate-600">
-            <li>
-              You must apply at the Chinese Embassy or Consulate that holds
-              jurisdiction over your state.
-            </li>
-            <li>
-              Required documents usually include your passport, a completed
-              application form, passport photo, and proof of itinerary.
-            </li>
-          </ul>
-
-          <div className="mt-5 flex gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-            <div>
-              <p className="text-sm font-bold text-slate-800">
-                Processing Time Alert
-              </p>
-              <p className="mt-1 text-sm leading-5 text-slate-600">
-                Visa processing can take 1-2 weeks. Since your trip is next
-                month, it&apos;s highly recommended to start immediately.
-              </p>
+        {isLoading ? (
+          <div className="flex items-center gap-3 text-slate-500">
+            <span className="text-sm font-medium">Generating answer</span>
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-slate-300 [animation-delay:-0.2s]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-slate-300 [animation-delay:-0.1s]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-slate-300" />
+            </span>
+          </div>
+        ) : (
+          <>
+            <div className="whitespace-pre-line">{content}</div>
+            <div className="mt-6 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+              <MessageActionButton
+                Icon={Bookmark}
+                label="Save"
+                tone="save"
+                onClick={onSave}
+              />
+              <MessageActionButton
+                Icon={Share2}
+                label="Share"
+                tone="share"
+                onClick={onShare}
+              />
+              <MessageActionButton
+                Icon={Copy}
+                label="Copy"
+                tone="copy"
+                onClick={() => onCopy(content)}
+              />
             </div>
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <h3 className="flex items-center gap-3 text-sm font-bold text-slate-950">
-            <BriefcaseBusiness className="h-4 w-4 text-slate-500" />
-            Payments in China
-          </h3>
-          <p className="mt-4">
-            China is largely a cashless society. While some large hotels accept
-            international credit cards, mobile payments are essential for
-            day-to-day purchases.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-md border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-slate-700">
-              Alipay (TourCard)
-            </span>
-            <span className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-1 text-sm font-medium text-slate-700">
-              WeChat Pay
-            </span>
-          </div>
-          <p className="mt-4 text-sm leading-5 text-slate-500">
-            Both apps now allow foreign visitors to link international
-            Visa/Mastercard credit cards. Download and set these up before you
-            arrive.
-          </p>
-        </section>
+          </>
+        )}
       </article>
     </div>
   );
 }
 
-function ItineraryPreviewCard() {
+function MessageItem({
+  message,
+  onCopy,
+  onShare,
+  onSave,
+}: {
+  message: ChatMessage;
+  onCopy: (content: string) => void;
+  onShare: () => void;
+  onSave: () => void;
+}) {
+  if (message.role === "user") {
+    return <UserMessageBubble content={message.content} />;
+  }
+
   return (
-    <div className="flex items-start gap-4">
-      <BotBadge />
-      <article className="w-full rounded-2xl rounded-tl-sm border border-slate-200 bg-white p-5 text-[0.94rem] leading-7 text-slate-700 shadow-sm sm:p-7">
-        <p>
-          Here is a balanced 10-day itinerary focusing on the highlights of
-          Beijing and Xi&apos;an:
-        </p>
-        <div className="mt-5 grid grid-cols-[3.8rem_1fr] gap-4">
-          <p className="text-sm font-semibold leading-5 text-slate-400">
-            Days 1-4
-          </p>
-          <div>
-            <p className="font-bold text-slate-950">Beijing (The Capital)</p>
-            <p className="mt-1 text-slate-500">
-              Explore the Forbidden City, Temple of Heaven, Summer Palace, and
-              take a day trip to the Great Wall.
-            </p>
-          </div>
-          <p className="text-sm font-semibold leading-5 text-slate-400">
-            Day 5
-          </p>
-          <div>
-            <p className="font-bold text-slate-950">High-Speed Train</p>
-            <p className="mt-1 text-slate-500">
-              Travel from Beijing to Xi&apos;an and settle into the old city.
-            </p>
-          </div>
-        </div>
-      </article>
-    </div>
+    <AssistantMessageBubble
+      status={message.status}
+      content={message.content}
+      onCopy={onCopy}
+      onShare={onShare}
+      onSave={onSave}
+    />
   );
 }
 
 export function ChatView() {
+  const router = useRouter();
+  const scrollParentRef = useRef<HTMLDivElement>(null);
+  const hasInitialScrolledRef = useRef(false);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const generationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
+  const [chat, setChat] = useState<MockChat>(() => {
+    if (typeof window === "undefined") {
+      return createInitialMockChat(DEFAULT_QUESTION);
+    }
+
+    const storedQuestion = window.sessionStorage.getItem(LAST_QUESTION_KEY);
+    return createInitialMockChat(storedQuestion || DEFAULT_QUESTION);
+  });
+  // TanStack Virtual intentionally returns imperative helpers for measuring and scrolling.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const rowVirtualizer = useVirtualizer({
+    count: chat.messages.length,
+    getScrollElement: () => scrollParentRef.current,
+    estimateSize: () => 220,
+    getItemKey: (index) => chat.messages[index]?.id ?? index,
+    overscan: 6,
+  });
+
+  function scrollToBottom(behavior: ScrollBehavior = "smooth") {
+    requestAnimationFrame(() => {
+      const scrollElement = scrollParentRef.current;
+
+      if (!scrollElement) {
+        return;
+      }
+
+      scrollElement.scrollTo({
+        top: scrollElement.scrollHeight,
+        behavior,
+      });
+    });
+  }
+
+  useEffect(() => {
+    if (hasInitialScrolledRef.current || chat.messages.length === 0) {
+      return;
+    }
+
+    hasInitialScrolledRef.current = true;
+    scrollToBottom("auto");
+  }, [chat.messages.length]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+
+      if (generationTimeoutRef.current) {
+        clearTimeout(generationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  function showToast(messageText: string) {
+    setToast(messageText);
+
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 1800);
+  }
 
   function handleSubmit() {
+    const trimmedMessage = message.trim();
+
+    if (!trimmedMessage || isGenerating) {
+      return;
+    }
+
+    const loadingMessageId = `assistant-loading-${Date.now()}`;
+    const userMessage = createMessage("user", trimmedMessage);
+    const loadingMessage: ChatMessage = {
+      id: loadingMessageId,
+      role: "assistant",
+      content: "Generating answer",
+      createdAt: new Date().toISOString(),
+      status: "loading",
+    };
+
+    setChat((currentChat) => ({
+      ...currentChat,
+      title:
+        currentChat.messages.length === 0
+          ? createChatTitle(trimmedMessage)
+          : currentChat.title,
+      messages: [...currentChat.messages, userMessage, loadingMessage],
+    }));
     setMessage("");
+    setIsGenerating(true);
+    scrollToBottom("smooth");
+
+    if (generationTimeoutRef.current) {
+      clearTimeout(generationTimeoutRef.current);
+    }
+
+    generationTimeoutRef.current = setTimeout(() => {
+      setChat((currentChat) => ({
+        ...currentChat,
+        messages: currentChat.messages.map((chatMessage) =>
+          chatMessage.id === loadingMessageId
+            ? {
+                ...chatMessage,
+                content: generateMockAnswer(trimmedMessage),
+                status: "complete",
+              }
+            : chatMessage,
+        ),
+      }));
+      setIsGenerating(false);
+      scrollToBottom("smooth");
+    }, 1000);
+  }
+
+  async function copyText(text: string, successMessage: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(successMessage);
+    } catch {
+      showToast("Copy failed. Please try again.");
+    }
+  }
+
+  function handleCopy(content: string) {
+    void copyText(content, "Copied");
+  }
+
+  function handleShare() {
+    const shareUrl = `${window.location.origin}/share/mock`;
+    void copyText(shareUrl, "Share link copied");
+  }
+
+  function handleSave() {
+    setIsLoginModalOpen(true);
+  }
+
+  function handleNewChat() {
+    router.push("/");
   }
 
   return (
     <main className="h-dvh overflow-hidden bg-slate-50 text-slate-950">
       <div className="flex h-full">
         <div className="hidden lg:block">
-          <Sidebar onOpenLogin={() => setIsLoginModalOpen(true)} />
+          <Sidebar
+            currentTitle={chat.title}
+            onNewChat={handleNewChat}
+            onOpenLogin={() => setIsLoginModalOpen(true)}
+          />
         </div>
 
         {isDrawerOpen ? (
@@ -362,6 +535,8 @@ export function ChatView() {
             />
             <div className="relative h-full">
               <Sidebar
+                currentTitle={chat.title}
+                onNewChat={handleNewChat}
                 onSelectChat={() => setIsDrawerOpen(false)}
                 onClose={() => setIsDrawerOpen(false)}
                 onOpenLogin={() => setIsLoginModalOpen(true)}
@@ -383,68 +558,49 @@ export function ChatView() {
               </button>
               <div className="min-w-0">
                 <h1 className="truncate text-lg font-bold tracking-tight text-slate-950">
-                  Planning trip to Beijing &amp; Xi&apos;an
+                  {chat.title}
                 </h1>
                 <p className="truncate text-sm text-slate-500">
-                  AI Assistant • Powered by Tourism Data
+                  Mock conversation • Frontend preview
                 </p>
               </div>
             </div>
-
-            {/* Language switcher hidden for now; default UI language is English.
-            <div className="group relative flex shrink-0">
-              <button
-                type="button"
-                className="flex cursor-pointer items-center gap-1.5 rounded-full bg-[rgba(104,52,0,0.88)] px-3 py-2 text-sm font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-[rgba(86,40,0,0.96)] focus-visible:ring-2 focus-visible:ring-slate-400 sm:gap-2 sm:px-4"
-                aria-label="Language selector"
-              >
-                <Globe2 className="h-[18px] w-[18px]" strokeWidth={2} />
-                <span className="hidden sm:inline-block">English</span>
-                <ChevronDown className="h-3.5 w-3.5" strokeWidth={2} />
-              </button>
-              <div className="pointer-events-none absolute -bottom-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/80 px-2.5 py-1.5 text-xs text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
-                Currently English only
-              </div>
-            </div>
-            */}
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-44 pt-12 sm:px-7 sm:pt-16">
-            <div className="mx-auto w-full max-w-[52rem] space-y-8">
-              <div className="flex items-start justify-end gap-0 sm:gap-4">
-                <div className="max-w-[42rem] rounded-2xl rounded-tr-sm bg-[rgba(104,52,0,0.88)] px-4 py-3 text-[0.94rem] leading-7 text-white shadow-sm sm:px-6 sm:py-4">
-                  I&apos;m planning a 10-day trip to China next month. I want to
-                  visit Beijing and Xi&apos;an. Can you help me understand the
-                  visa requirements for a US citizen and suggest a basic
-                  itinerary? Also, how do I pay for things there?
-                </div>
-                <UserAvatar className="hidden sm:block" />
-              </div>
+          <div
+            ref={scrollParentRef}
+            className="min-h-0 flex-1 overflow-y-auto px-4 pb-44 pt-12 sm:px-7 sm:pt-16"
+          >
+            <div
+              className="relative mx-auto w-full max-w-[52rem]"
+              style={{ height: rowVirtualizer.getTotalSize() }}
+            >
+              {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                const chatMessage = chat.messages[virtualItem.index];
 
-              <AiAnswerCard />
+                if (!chatMessage) {
+                  return null;
+                }
 
-              <div className="pl-0 sm:pl-[3.25rem]">
-                <div className="flex flex-wrap gap-2">
-                  {promptChips.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-start justify-end gap-0 sm:gap-4">
-                <div className="max-w-[22rem] rounded-2xl rounded-tr-sm bg-[rgba(104,52,0,0.88)] px-4 py-3 text-[0.94rem] leading-6 text-white shadow-sm sm:px-5 sm:py-3.5">
-                  Please show me the 10-day itinerary.
-                </div>
-                <UserAvatar className="hidden sm:block" />
-              </div>
-
-              <ItineraryPreviewCard />
+                return (
+                  <div
+                    key={virtualItem.key}
+                    ref={rowVirtualizer.measureElement}
+                    data-index={virtualItem.index}
+                    className="absolute left-0 top-0 w-full pb-8"
+                    style={{
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    <MessageItem
+                      message={chatMessage}
+                      onCopy={handleCopy}
+                      onShare={handleShare}
+                      onSave={handleSave}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -454,7 +610,12 @@ export function ChatView() {
                 value={message}
                 onChange={setMessage}
                 onSubmit={handleSubmit}
-                placeholder="Ask about your China trip..."
+                placeholder={
+                  isGenerating
+                    ? "Generating answer..."
+                    : "Ask about your China trip..."
+                }
+                disabled={isGenerating}
               />
 
               <p className="mt-4 text-center text-xs text-slate-400">
@@ -465,6 +626,14 @@ export function ChatView() {
           </div>
         </section>
       </div>
+
+      {toast ? (
+        <div className="fixed bottom-6 left-1/2 z-50 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-slate-900/20">
+          <Check className="h-4 w-4 text-emerald-300" />
+          {toast}
+        </div>
+      ) : null}
+
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}

@@ -9,6 +9,7 @@ interface ChatInputProps {
   onSubmit: () => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function ChatInput({
@@ -17,8 +18,9 @@ export function ChatInput({
   onSubmit,
   placeholder = "Ask about your China trip...",
   className = "",
+  disabled = false,
 }: ChatInputProps) {
-  const canSubmit = value.trim().length > 0;
+  const canSubmit = !disabled && value.trim().length > 0;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
 
@@ -65,10 +67,11 @@ export function ChatInput({
           <textarea
             ref={textareaRef}
             value={value}
+            disabled={disabled}
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            className={`block max-h-[120px] w-full resize-none bg-transparent py-0 text-[0.95rem] leading-6 text-slate-900 outline-none ${
+            className={`block max-h-[120px] w-full resize-none bg-transparent py-0 text-[0.95rem] leading-6 text-slate-900 outline-none disabled:cursor-not-allowed disabled:text-slate-500 ${
               isOverflowing ? "overflow-y-auto" : "overflow-hidden"
             }`}
             aria-label={placeholder}
