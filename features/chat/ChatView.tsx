@@ -214,7 +214,7 @@ function Sidebar({
 function UserMessageBubble({ content }: { content: string }) {
   return (
     <div className="flex items-start justify-end">
-      <div className="max-w-[36rem] whitespace-pre-line rounded-[1.25rem] rounded-tr-sm bg-[linear-gradient(135deg,#8A552B,#14243A)] px-4 py-3 text-[0.94rem] leading-7 text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10)] sm:px-6 sm:py-4">
+      <div className="max-w-[36rem] whitespace-pre-line rounded-[1.25rem] rounded-tr-sm border border-white/45 bg-[linear-gradient(135deg,#8A552B,#14243A)] px-4 py-3 text-[0.94rem] leading-7 text-[#FFF8EF] shadow-[0_18px_42px_rgba(2,8,23,0.28),0_0_34px_rgba(255,255,255,0.24)] ring-1 ring-white/28 sm:px-6 sm:py-4">
         {content}
       </div>
     </div>
