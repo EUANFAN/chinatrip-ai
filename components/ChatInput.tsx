@@ -56,20 +56,26 @@ export function ChatInput({
   return (
     <form onSubmit={handleSubmit} className={className}>
       <div
-        className={`flex items-end gap-3 rounded-2xl border p-3 backdrop-blur-md transition ${
+        className={`relative flex items-end gap-3 overflow-hidden rounded-2xl border p-3 backdrop-blur-md transition ${
           isChatVariant
-            ? "border-[#E2D4C5] bg-white shadow-[0_18px_50px_rgba(20,36,58,0.10)]"
+            ? "border-white/70 bg-[linear-gradient(145deg,#FFFFFF_0%,#FFFDF9_48%,#F6EEE3_100%)] shadow-[0_24px_60px_rgba(10,18,30,0.18),0_1px_0_rgba(255,255,255,0.85)_inset] ring-1 ring-[#E6D8C7]/55"
             : "border-slate-200 bg-white shadow-lg shadow-slate-900/8"
         }`}
       >
+        {isChatVariant ? (
+          <div
+            className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent"
+            aria-hidden="true"
+          />
+        ) : null}
         <Pencil
-          className={`mb-2.5 h-5 w-5 shrink-0 rotate-270 ${
+          className={`relative z-10 mb-2.5 h-5 w-5 shrink-0 rotate-270 ${
             isChatVariant ? "text-[#9A8D80]" : "text-slate-400"
           }`}
           strokeWidth={2}
           aria-hidden="true"
         />
-        <div className="relative mb-2 flex-1">
+        <div className="relative z-10 mb-2 flex-1">
           {value.length === 0 && (
             <div
               className={`pointer-events-none absolute left-0 top-0 text-[0.95rem] leading-6 ${
@@ -99,7 +105,7 @@ export function ChatInput({
         <button
           type="submit"
           disabled={!canSubmit}
-          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition focus-visible:ring-2 sm:h-10 sm:w-10 ${
+          className={`relative z-10 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition focus-visible:ring-2 sm:h-10 sm:w-10 ${
             canSubmit
               ? "bg-[linear-gradient(135deg,#8A552B,#14243A)] text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10)] hover:brightness-105 focus-visible:ring-[#D49A52]/45"
               : isChatVariant

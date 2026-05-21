@@ -51,22 +51,10 @@ const classicQuestions = [
     colorClass: "text-red-400",
   },
   {
-    label: "Ordering food",
-    question: "How can I order food in China if I don’t speak Chinese?",
-    Icon: Utensils,
-    colorClass: "text-orange-400",
-  },
-  {
     label: "10 hours in Shanghai",
     question: "I have 10 hours in Shanghai. What can I do?",
     Icon: Clock,
     colorClass: "text-cyan-400",
-  },
-  {
-    label: "High-speed trains",
-    question: "Can foreign tourists use high-speed trains in China?",
-    Icon: TrainFront,
-    colorClass: "text-rose-400",
   },
 ];
 
