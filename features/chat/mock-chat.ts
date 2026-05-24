@@ -5,7 +5,9 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   createdAt: string;
-  status?: "complete" | "loading";
+  status?: "complete" | "loading" | "failed";
+  progress?: number;
+  loadingLabel?: string;
 };
 
 export type MockChat = {
@@ -74,7 +76,7 @@ export function createChatTitle(question: string): string {
     return "New China travel question";
   }
 
-  return normalized.length > 40 ? `${normalized.slice(0, 40)}...` : normalized;
+  return normalized;
 }
 
 export function createInitialMockChat(question: string): MockChat {
@@ -131,20 +133,20 @@ export function generateMockAnswer(question: string): string {
     normalized.includes("pay") ||
     normalized.includes("card")
   ) {
-    return `Direct Answer
+    return `## Direct Answer
 Foreign travelers can usually use Alipay and WeChat Pay in China by linking an international bank card, but it is best to set them up before arrival.
 
-Practical Steps
+## Practical Steps
 1. Download Alipay and WeChat before your trip.
 2. Link a supported international Visa, Mastercard, or other bank card.
 3. Complete identity verification if the app asks for it.
 4. Test a small payment after arrival.
 5. Keep one backup payment method, such as a physical card or some cash.
 
-Things to Watch Out For
+## Watch Outs
 Some small vendors may not handle foreign-card-linked payments smoothly. Hotels and major stores are usually easier, but street vendors can vary.
 
-Useful Chinese Phrases
+## Useful Phrases
 请问可以用支付宝吗？
 Can I pay with Alipay?
 
@@ -157,19 +159,19 @@ Can I use a foreign bank card?`;
     normalized.includes("taxi") ||
     normalized.includes("cab")
   ) {
-    return `Direct Answer
+    return `## Direct Answer
 Foreign travelers can use taxis and Didi in China, but Didi is usually easier if you have mobile data and a payment method connected.
 
-Practical Steps
+## Practical Steps
 1. Install Didi or use Didi inside Alipay or WeChat.
 2. Enter your destination in English or copy the Chinese address from your hotel or map app.
 3. Check the license plate before getting in.
 4. Keep the destination open on your phone during the ride.
 
-Things to Watch Out For
+## Watch Outs
 Many taxi drivers do not speak English. Avoid relying only on spoken directions.
 
-Useful Chinese Phrases
+## Useful Phrases
 请带我去这个地址。
 Please take me to this address.
 
@@ -183,19 +185,19 @@ Can you use the meter?`;
     normalized.includes("restaurant") ||
     normalized.includes("menu")
   ) {
-    return `Direct Answer
+    return `## Direct Answer
 You can order food in China without speaking Chinese by using translation apps, picture menus, delivery apps, and a few simple phrases.
 
-Practical Steps
+## Practical Steps
 1. Use a translation app to scan menus.
 2. Look for restaurants with picture menus if you are new to China.
 3. Save dietary restrictions in Chinese before your trip.
 4. Point to dishes politely when ordering in person.
 
-Things to Watch Out For
+## Watch Outs
 Spicy levels and ingredients may not be obvious from photos. Ask directly if you have allergies.
 
-Useful Chinese Phrases
+## Useful Phrases
 我不会说中文。
 I do not speak Chinese.
 
@@ -211,19 +213,19 @@ No spicy, thank you.`;
     normalized.includes("rail") ||
     normalized.includes("high-speed")
   ) {
-    return `Direct Answer
+    return `## Direct Answer
 Foreign tourists can use high-speed trains in China. You usually need your passport for booking and station entry.
 
-Practical Steps
+## Practical Steps
 1. Book through an official or reputable travel app.
 2. Enter your passport name and passport number carefully.
 3. Arrive early at large stations, especially on your first trip.
 4. Bring your passport because it is used as your ticket ID.
 
-Things to Watch Out For
+## Watch Outs
 Station security and ticket checks can take time. Large stations may have multiple entrances and waiting halls.
 
-Useful Chinese Phrases
+## Useful Phrases
 高铁站在哪里？
 Where is the high-speed railway station?
 
@@ -236,38 +238,38 @@ Where is this ticket gate?`;
     normalized.includes("download") ||
     normalized.includes("prepare")
   ) {
-    return `Direct Answer
+    return `## Direct Answer
 Before traveling to China, download the key apps you need for payments, transport, translation, maps, and communication.
 
-Practical Steps
+## Practical Steps
 1. Install Alipay and WeChat for payments and daily services.
 2. Install a translation app with camera translation.
 3. Prepare a map app that works well in China.
 4. Save hotel names and addresses in Chinese.
 5. Set up mobile data or eSIM before arrival if possible.
 
-Things to Watch Out For
+## Watch Outs
 Some international services may not work the same way in China. Test essential apps before you rely on them during your trip.
 
-Useful Chinese Phrases
+## Useful Phrases
 请问这个地址怎么走？
 How do I get to this address?`;
   }
 
-  return `Direct Answer
+  return `## Direct Answer
 Yes. For a China trip, focus on practical preparation: payments, transport, mobile data, translation, and saving key addresses in Chinese.
 
-Practical Steps
+## Practical Steps
 1. Set up payment apps before or soon after arrival.
 2. Save hotel and destination addresses in Chinese.
 3. Prepare mobile data, translation, and map tools.
 4. Keep your passport accessible for hotels, trains, and some tickets.
 5. Build in extra time for large stations, popular attractions, and first-time setup.
 
-Things to Watch Out For
+## Watch Outs
 Avoid relying on one app, one payment method, or spoken English only. A backup plan makes travel much smoother.
 
-Useful Chinese Phrases
+## Useful Phrases
 请帮我看一下这个地址。
 Please help me check this address.
 

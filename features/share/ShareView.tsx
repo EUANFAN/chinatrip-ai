@@ -1,6 +1,7 @@
 "use client";
 
 import { ChatInput } from "@/components/ChatInput";
+import { AnswerContent } from "@/components/AnswerContent";
 import {
   ChatMessage,
   DEFAULT_QUESTION,
@@ -204,7 +205,9 @@ export function ShareView() {
                 </p>
               </div>
             </div>
-            <div className="mt-5 whitespace-pre-line">{sharedAnswerText}</div>
+            <div className="mt-5">
+              <AnswerContent content={sharedAnswerText} />
+            </div>
           </article>
 
           <div className="mt-5 flex flex-wrap gap-2">

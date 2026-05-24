@@ -108,6 +108,7 @@ GET /api/chats
 GET /api/chats/:chatId
 PATCH /api/chats/:chatId
 POST /api/chats/:chatId/messages
+POST /api/chats/:chatId/messages/stream
 POST /api/shared-answers
 GET /api/share/:shareId
 POST /api/share/:shareId/chats
@@ -378,6 +379,78 @@ Errors:
 
 - `EMPTY_MESSAGE`
 - `CHAT_NOT_FOUND`
+- `MESSAGE_GENERATION_IN_PROGRESS`
+
+### POST /api/chats/:chatId/messages/stream
+
+Streams an assistant answer for a follow-up message or for the first unanswered
+user message after `POST /api/chats`.
+
+This endpoint is preferred by the Chat UI because it returns immediately as
+`text/event-stream` and sends answer deltas while the model is still generating.
+`POST /api/chats/:chatId/messages` remains available as the non-streaming
+fallback.
+
+Request:
+
+```ts
+type SendMessageRequest = {
+  message?: string
+}
+```
+
+Events:
+
+```ts
+type StreamMessageEvent =
+  | {
+      type: 'created'
+      userMessage: SendMessageResponse['userMessage']
+      assistantMessage: {
+        id: string
+        chatId: string
+        role: 'assistant'
+        status: 'pending'
+        sequence: number
+        content: ''
+        errorCode: null
+        errorMessage: null
+        createdAt: string
+        updatedAt: string
+      }
+    }
+  | {
+      type: 'delta'
+      content: string
+    }
+  | {
+      type: 'done'
+      assistantMessage: SendMessageResponse['assistantMessage']
+      usage: SendMessageResponse['usage']
+    }
+  | {
+      type: 'error'
+      assistantMessage?: SendMessageResponse['assistantMessage']
+      error: {
+        code: string
+        message: string
+      }
+    }
+```
+
+Database behavior:
+
+- Create the user message and `pending` assistant message before streaming.
+- Stream deltas to the client without writing every delta to the database.
+- On completion, update the assistant message to `complete` with the full answer.
+- On failure or interruption, update the assistant message to `failed`.
+- Create an `ai_usage_logs` row when possible.
+
+Errors before stream starts:
+
+- `EMPTY_MESSAGE`
+- `CHAT_NOT_FOUND`
+- `MESSAGE_GENERATION_IN_PROGRESS`
 - `FORBIDDEN`
 - `AI_GENERATION_FAILED`
 - `INTERNAL_ERROR`
@@ -568,7 +641,7 @@ Errors:
 
 ## AI Internal Service Contract
 
-There is no public `/api/ai` endpoint in MVP. AI generation is called internally by `POST /api/chats/:chatId/messages`.
+There is no public `/api/ai` endpoint in MVP. AI generation is called internally by `POST /api/chats/:chatId/messages` and `POST /api/chats/:chatId/messages/stream`.
 
 Input:
 
@@ -600,11 +673,31 @@ type GenerateAnswerResult = {
 }
 ```
 
+Streaming output:
+
+```ts
+type StreamAnswerChunk =
+  | {
+      type: 'delta'
+      content: string
+    }
+  | {
+      type: 'done'
+      result: GenerateAnswerResult
+    }
+```
+
 Rules:
 
 - First API implementation may use `provider=mock`.
 - Doubao is the target primary provider.
 - DeepSeek is the planned fallback provider.
+- Default generation should prefer concise answers.
+- Default provider parameters:
+  - `temperature=0.3`
+  - `max_tokens=600`
+- `AI_TEMPERATURE` and `AI_MAX_OUTPUT_TOKENS` may override these defaults.
+- Chat history sent to the provider should be trimmed to the most recent relevant messages.
 - Every generation attempt should create an `ai_usage_logs` row when possible.
 
 ## Endpoint Priority
@@ -615,13 +708,14 @@ Implementation order:
 1. POST /api/chats
 2. GET /api/chats/:chatId
 3. POST /api/chats/:chatId/messages
-4. GET /api/chats
-5. POST /api/shared-answers
-6. GET /api/share/:shareId
-7. POST /api/share/:shareId/chats
-8. GET /api/me
-9. PATCH /api/chats/:chatId
-10. POST /api/auth/logout
+4. POST /api/chats/:chatId/messages/stream
+5. GET /api/chats
+6. POST /api/shared-answers
+7. GET /api/share/:shareId
+8. POST /api/share/:shareId/chats
+9. GET /api/me
+10. PATCH /api/chats/:chatId
+11. POST /api/auth/logout
 ```
 
 ## Test Plan

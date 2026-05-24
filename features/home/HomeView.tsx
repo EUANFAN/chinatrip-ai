@@ -6,8 +6,6 @@ import {
   Luggage,
   MapPinned,
   Smartphone,
-  TrainFront,
-  Utensils,
   WalletCards,
 } from "lucide-react";
 import Image from "next/image";
@@ -16,8 +14,10 @@ import { useRouter } from "next/navigation";
 import { ChatInput } from "../../components/ChatInput";
 import { LoginModal } from "../../components/LoginModal";
 import { useState } from "react";
+import { ApiClientError, apiFetch } from "@/lib/api/client";
+import { CreateChatResponse } from "@/lib/api/types";
 
-const LAST_QUESTION_KEY = "chinatrip:lastQuestion";
+const CHAT_START_DELAY_MS = 350;
 
 const classicQuestions = [
   {
@@ -61,21 +61,46 @@ const classicQuestions = [
 export function HomeView() {
   const router = useRouter();
   const [question, setQuestion] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  function submitQuestion(value: string) {
+  function waitForChatStart() {
+    return new Promise((resolve) => {
+      setTimeout(resolve, CHAT_START_DELAY_MS);
+    });
+  }
+
+  async function submitQuestion(value: string) {
     const trimmedQuestion = value.trim();
 
-    if (!trimmedQuestion) {
+    if (!trimmedQuestion || isSubmitting) {
       return;
     }
 
-    window.sessionStorage.setItem(LAST_QUESTION_KEY, trimmedQuestion);
-    router.push("/chat/mock");
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await apiFetch<CreateChatResponse>("/chats", {
+        message: trimmedQuestion,
+        source: "home",
+      });
+
+      await waitForChatStart();
+      router.push(`/chat/${response.chat.id}`);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof ApiClientError
+          ? error.message
+          : "Failed to create chat. Please try again.",
+      );
+      setIsSubmitting(false);
+    }
   }
 
   function handleSubmit() {
-    submitQuestion(question);
+    void submitQuestion(question);
   }
 
   return (
@@ -143,8 +168,15 @@ export function HomeView() {
             value={question}
             onChange={setQuestion}
             onSubmit={handleSubmit}
+            disabled={isSubmitting}
             className="mt-8 w-full max-w-[45rem] sm:mt-12 lg:max-w-[49rem]"
           />
+
+          {errorMessage ? (
+            <p className="mt-3 max-w-[45rem] text-sm font-medium text-red-100">
+              {errorMessage}
+            </p>
+          ) : null}
 
           <div className="mt-6 flex w-full max-w-[72rem] flex-wrap items-center justify-center gap-2 sm:mt-10 sm:gap-4">
             {classicQuestions.map((item) => (

@@ -38,6 +38,7 @@ POST /api/chats
 GET /api/chats
 GET /api/chats/:chatId
 POST /api/chats/:chatId/messages
+POST /api/chats/:chatId/messages/stream
 POST /api/shared-answers
 GET /api/share/:shareId
 ```
