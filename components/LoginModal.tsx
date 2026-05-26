@@ -2,7 +2,7 @@
 
 import { Mail, X } from "lucide-react";
 import Image from "next/image";
-import { MouseEvent } from "react";
+import { MouseEvent, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface LoginModalProps {
@@ -38,6 +38,8 @@ function GoogleLogo() {
 }
 
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
   if (!isOpen) {
     return null;
   }
@@ -46,24 +48,43 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     event.stopPropagation();
   }
 
+  function handleClose() {
+    setIsGoogleLoading(false);
+    onClose();
+  }
+
   async function handleGoogleLogin() {
+    if (isGoogleLoading) {
+      return;
+    }
+
+    setIsGoogleLoading(true);
     const supabase = createSupabaseBrowserClient();
     const nextPath = `${window.location.pathname}${window.location.search}`;
 
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
-          nextPath,
-        )}`,
-      },
-    });
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+            nextPath,
+          )}`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error("Failed to start Google login", error);
+      setIsGoogleLoading(false);
+    }
   }
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/58 px-4 py-6 backdrop-blur-[1px]"
-      onClick={onClose}
+      onClick={handleClose}
       role="presentation"
     >
       <div
@@ -75,7 +96,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute right-5 top-5 inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-slate-300"
           aria-label="Close login modal"
         >
@@ -106,10 +127,17 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
         <button
           type="button"
           onClick={handleGoogleLogin}
-          className="mt-7 flex h-[3.55rem] w-full items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white px-4 text-[1.08rem] font-medium text-slate-950 shadow-[0_3px_14px_rgba(15,23,42,0.10)] transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-300"
+          disabled={isGoogleLoading}
+          className="mt-7 flex h-[3.55rem] w-full items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white px-4 text-[1.08rem] font-medium text-slate-950 shadow-[0_3px_14px_rgba(15,23,42,0.10)] transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-600"
         >
           <GoogleLogo />
           <span className="truncate">Continue with Google</span>
+          {isGoogleLoading ? (
+            <span
+              className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-amber-400"
+              aria-hidden="true"
+            />
+          ) : null}
         </button>
 
         <div className="my-7 flex items-center gap-4 text-sm font-medium text-slate-500">

@@ -13,6 +13,11 @@ export const metadata: Metadata = {
     template: `%s | ${siteName}`,
   },
   description: siteDescription,
+  icons: {
+    icon: "/logo-img.png",
+    shortcut: "/logo-img.png",
+    apple: "/logo-img.png",
+  },
   alternates: {
     canonical: "/",
   },

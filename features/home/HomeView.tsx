@@ -199,7 +199,23 @@ export function HomeView() {
             className="mt-8 w-full max-w-[45rem] sm:mt-12 lg:max-w-[49rem]"
           />
 
-          {errorMessage ? (
+          {isSubmitting && !errorMessage ? (
+            <div
+              className="mt-4 flex w-full max-w-[45rem] items-center justify-center"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="inline-flex max-w-full items-center gap-2.5 rounded-full border border-white/25 bg-black/35 px-4 py-2.5 text-white shadow-[0_16px_38px_rgba(0,0,0,0.22)] backdrop-blur-md sm:px-5">
+                <span
+                  className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-white/25 border-t-amber-300"
+                  aria-hidden="true"
+                />
+                <span className="truncate text-sm font-semibold text-white">
+                  Preparing your chat...
+                </span>
+              </div>
+            </div>
+          ) : errorMessage ? (
             <p className="mt-3 max-w-[45rem] text-sm font-medium text-red-100">
               {errorMessage}
             </p>
@@ -210,8 +226,13 @@ export function HomeView() {
               <button
                 key={item.label}
                 type="button"
-                onClick={() => setQuestion(item.question)}
-                className="inline-flex h-10 max-w-full cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3.5 text-[0.85rem] font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 sm:h-[44px] sm:gap-2.5 sm:px-5 sm:text-sm"
+                disabled={isSubmitting}
+                onClick={() => {
+                  if (!isSubmitting) {
+                    setQuestion(item.question);
+                  }
+                }}
+                className="inline-flex h-10 max-w-full cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3.5 text-[0.85rem] font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100 disabled:hover:bg-white/10 sm:h-[44px] sm:gap-2.5 sm:px-5 sm:text-sm"
               >
                 <item.Icon
                   className={`h-[16px] w-[16px] shrink-0 sm:h-[18px] sm:w-[18px] ${item.colorClass}`}
