@@ -8,3 +8,5 @@ dist
 coverage
 .DS_Store
 *.tsbuildinfo
+.playwright-cli
+next-env.d.ts
