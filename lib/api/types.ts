@@ -147,3 +147,55 @@ export type StreamMessageEvent =
   | StreamMessageDeltaEvent
   | StreamMessageDoneEvent
   | StreamMessageErrorEvent;
+
+export type CreateSharedAnswerRequest = {
+  chatId: string;
+  userMessageId: string;
+  assistantMessageId: string;
+};
+
+export type CreateSharedAnswerResponse = {
+  share: {
+    id: string;
+    shareId: string;
+    url: string;
+    question: string;
+    answer: string;
+    createdAt: string;
+  };
+};
+
+export type SharedAnswerResponse = {
+  share: {
+    id: string;
+    shareId: string;
+    question: string;
+    answer: string;
+    createdAt: string;
+    viewCount: number;
+  };
+};
+
+export type CreateChatFromShareRequest = {
+  message: string;
+  language?: "en" | "zh";
+};
+
+export type CreateChatFromShareResponse = CreateChatResponse;
+
+export type MeResponse = {
+  user: {
+    id: string;
+    email: string | null;
+    name: string | null;
+    avatarUrl: string | null;
+    locale: "en" | "zh";
+  } | null;
+  anonymous: {
+    id: string;
+  };
+};
+
+export type LogoutResponse = {
+  status: "ok";
+};

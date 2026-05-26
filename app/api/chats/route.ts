@@ -6,9 +6,10 @@ import {
   CreateChatResponse,
 } from "@/lib/api/types";
 import {
-  getAnonymousIdFromCookie,
-  getOrCreateAnonymousSession,
-} from "@/lib/auth/anonymous-session";
+  createChatOwnerData,
+  createChatOwnerWhere,
+  getCurrentIdentity,
+} from "@/lib/auth/current-identity";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -50,29 +51,17 @@ function createPreview(value: string | undefined) {
 }
 
 export async function GET(request: Request) {
-  const anonymousId = await getAnonymousIdFromCookie();
-
-  if (!anonymousId) {
-    const emptyResponse: ChatHistoryResponse = {
-      chats: [],
-      nextCursor: null,
-    };
-
-    return NextResponse.json(emptyResponse);
-  }
-
   const { searchParams } = new URL(request.url);
   const limit = getLimit(searchParams.get("limit"));
 
   try {
+    const identity = await getCurrentIdentity();
     const chats = await prisma.chat.findMany({
       where: {
         status: {
           not: "deleted",
         },
-        anonymousSession: {
-          anonymousId,
-        },
+        ...createChatOwnerWhere(identity),
       },
       include: {
         messages: {
@@ -138,13 +127,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const anonymousSession = await getOrCreateAnonymousSession();
+    const identity = await getCurrentIdentity();
     const now = new Date();
 
     const { chat, firstMessage } = await prisma.$transaction(async (tx) => {
       const createdChat = await tx.chat.create({
         data: {
-          anonymousSessionId: anonymousSession.id,
+          ...createChatOwnerData(identity),
           title: createChatTitle(message),
           language,
           status: "active",

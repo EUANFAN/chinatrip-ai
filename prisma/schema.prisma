@@ -43,8 +43,8 @@ model Profile {
   name      String?
   avatarUrl String?  @map("avatar_url")
   locale    Language @default(en)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   chats         Chat[]
   sharedAnswers SharedAnswer[]
@@ -56,8 +56,8 @@ model AnonymousSession {
   id            String   @id @default(uuid()) @db.Uuid
   anonymousId   String   @unique @map("anonymous_id")
   userAgent     String?  @map("user_agent")
-  createdAt     DateTime @default(now()) @map("created_at")
-  lastActiveAt  DateTime @default(now()) @map("last_active_at")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastActiveAt  DateTime @default(now()) @map("last_active_at") @db.Timestamptz(3)
 
   chats         Chat[]
   sharedAnswers SharedAnswer[]
@@ -72,9 +72,9 @@ model Chat {
   title              String
   language           Language    @default(en)
   status             ChatStatus  @default(active)
-  createdAt          DateTime    @default(now()) @map("created_at")
-  updatedAt          DateTime    @updatedAt @map("updated_at")
-  lastMessageAt      DateTime    @default(now()) @map("last_message_at")
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastMessageAt      DateTime    @default(now()) @map("last_message_at") @db.Timestamptz(3)
 
   profile          Profile?          @relation(fields: [profileId], references: [id], onDelete: SetNull)
   anonymousSession AnonymousSession? @relation(fields: [anonymousSessionId], references: [id], onDelete: SetNull)
@@ -97,8 +97,8 @@ model Message {
   errorCode    String?       @map("error_code")
   errorMessage String?       @map("error_message")
   metadata     Json?
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
@@ -123,8 +123,8 @@ model SharedAnswer {
   answer             String
   isPublic           Boolean   @default(true) @map("is_public")
   viewCount          Int       @default(0) @map("view_count")
-  createdAt          DateTime  @default(now()) @map("created_at")
-  updatedAt          DateTime  @updatedAt @map("updated_at")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   revokedAt          DateTime? @map("revoked_at")
 
   chat             Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
@@ -154,7 +154,7 @@ model AiUsageLog {
   fallbackUsed   Boolean    @default(false) @map("fallback_used")
   errorMessage   String?    @map("error_message")
   metadata       Json?
-  createdAt      DateTime   @default(now()) @map("created_at")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
 
   chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)

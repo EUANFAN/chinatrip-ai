@@ -3,10 +3,38 @@
 import { Mail, X } from "lucide-react";
 import Image from "next/image";
 import { MouseEvent } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function GoogleLogo() {
+  return (
+    <svg
+      className="h-5.5 w-5.5 shrink-0"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        fill="#4285F4"
+        d="M23.64 12.2c0-.82-.07-1.6-.2-2.36H12v4.46h6.54c-.28 1.5-1.14 2.78-2.43 3.64v2.98h3.94c2.3-2.12 3.59-5.24 3.59-8.72Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.96-1.07 7.95-2.91l-3.94-2.98c-1.09.73-2.49 1.16-4.01 1.16-3.08 0-5.7-2.08-6.64-4.88H1.29v3.07C3.27 21.35 7.31 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.36 14.39A7.2 7.2 0 0 1 4.98 12c0-.83.14-1.64.38-2.39V6.54H1.29A11.94 11.94 0 0 0 0 12c0 1.94.46 3.78 1.29 5.46l4.07-3.07Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.73c1.76 0 3.34.61 4.59 1.8l3.44-3.44C17.95 1.15 15.23 0 12 0 7.31 0 3.27 2.65 1.29 6.54l4.07 3.07C6.3 6.81 8.92 4.73 12 4.73Z"
+      />
+    </svg>
+  );
 }
 
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
@@ -16,6 +44,20 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   function handleDialogClick(event: MouseEvent<HTMLDivElement>) {
     event.stopPropagation();
+  }
+
+  async function handleGoogleLogin() {
+    const supabase = createSupabaseBrowserClient();
+    const nextPath = `${window.location.pathname}${window.location.search}`;
+
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+          nextPath,
+        )}`,
+      },
+    });
   }
 
   return (
@@ -63,11 +105,10 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
         <button
           type="button"
+          onClick={handleGoogleLogin}
           className="mt-7 flex h-[3.55rem] w-full items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white px-4 text-[1.08rem] font-medium text-slate-950 shadow-[0_3px_14px_rgba(15,23,42,0.10)] transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-300"
         >
-          <span className="text-[1.45rem] font-bold leading-none">
-            <span className="text-[#4285f4]">G</span>
-          </span>
+          <GoogleLogo />
           <span className="truncate">Continue with Google</span>
         </button>
 

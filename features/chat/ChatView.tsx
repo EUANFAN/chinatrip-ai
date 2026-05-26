@@ -3,18 +3,24 @@
 import { ChatInput } from "@/components/ChatInput";
 import { AnswerContent } from "@/components/AnswerContent";
 import { LoginModal } from "@/components/LoginModal";
+import { UserProfileAvatar } from "@/components/UserProfileAvatar";
 import { ApiClientError, apiFetch } from "@/lib/api/client";
+import { useCurrentUser } from "@/features/auth/use-current-user";
 import {
   ChatDetailMessage,
   ChatDetailResponse,
   ChatHistoryItem,
   ChatHistoryResponse,
+  CreateSharedAnswerResponse,
+  LogoutResponse,
+  MeResponse,
   SendMessageRequest,
   SendMessageResponse,
   StreamMessageEvent,
 } from "@/lib/api/types";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
+  AlertTriangle,
   Check,
   CirclePlus,
   Copy,
@@ -23,6 +29,7 @@ import {
   Menu,
   MoreHorizontal,
   Share2,
+  UserRound,
   X,
 } from "lucide-react";
 import Image from "next/image";
@@ -46,10 +53,22 @@ import {
 const CHAT_DETAIL_LOADING_AFTER_RESPONSE_MS = 1000;
 const GENERATION_DONE_HOLD_MS = 250;
 const GENERATION_PROGRESS_INTERVAL_MS = 180;
-const STREAM_TYPEWRITER_INTERVAL_MS = 24;
+const STREAM_TYPEWRITER_INTERVAL_MS = 34;
 const STREAM_SCROLL_THROTTLE_MS = 120;
 const STREAM_BOTTOM_THRESHOLD_PX = 96;
 const FORCE_BOTTOM_SECOND_PASS_DELAY_MS = 100;
+const AI_QUOTA_EXHAUSTED_CODE = "AI_QUOTA_EXHAUSTED";
+const AI_QUOTA_EXHAUSTED_MESSAGE =
+  "Today's AI usage has been used up. Please come back tomorrow.";
+
+const USER_MESSAGE_SURFACE_CLASS =
+  "border border-white bg-[linear-gradient(135deg,#8A552B,#14243A)] shadow-[0_30px_68px_rgba(2,8,23,0.5),0_8px_18px_rgba(2,8,23,0.24),0_0_0_1px_rgba(255,255,255,0.22),0_0_40px_rgba(255,248,239,0.28),0_1px_0_rgba(255,255,255,0.62)_inset,0_-10px_22px_rgba(2,8,23,0.16)_inset] backdrop-blur-[3px] backdrop-saturate-125";
+const USER_AVATAR_SURFACE_CLASS =
+  "border border-white bg-[linear-gradient(135deg,#8A552B,#14243A)] shadow-[0_20px_38px_rgba(2,8,23,0.42),0_8px_18px_rgba(2,8,23,0.18),0_0_0_1px_rgba(255,255,255,0.24),0_0_30px_rgba(255,248,239,0.30),0_1px_0_rgba(255,255,255,0.68)_inset]";
+const ASSISTANT_SURFACE_CLASS =
+  "border border-white/80 bg-white shadow-[0_28px_70px_rgba(10,18,30,0.22),0_8px_18px_rgba(10,18,30,0.08),0_1px_0_rgba(255,255,255,0.95)_inset] ring-1 ring-[#E6D8C7]/60";
+const ASSISTANT_AVATAR_SURFACE_CLASS =
+  "border border-white/80 bg-[#FFFDF9] shadow-[0_18px_38px_rgba(10,18,30,0.16),0_8px_18px_rgba(10,18,30,0.07),0_1px_0_rgba(255,255,255,0.95)_inset] ring-1 ring-[#E6D8C7]/60";
 
 type DetailLoadingReason = "initial" | "history" | null;
 
@@ -67,7 +86,13 @@ function toChatMessage(message: ChatDetailMessage): ChatMessage {
         ? message.errorMessage || "Message failed."
         : message.content,
     createdAt: message.createdAt,
-    status: message.status === "pending" ? "loading" : "complete",
+    status:
+      message.status === "pending"
+        ? "loading"
+        : message.status === "failed"
+        ? "failed"
+        : "complete",
+    errorCode: message.errorCode,
   };
 }
 
@@ -95,6 +120,7 @@ function toAssistantChatMessage(
         : message.content,
     createdAt: message.createdAt,
     status: message.status,
+    errorCode: message.errorCode,
   };
 }
 
@@ -125,12 +151,21 @@ function parseStreamEvent(rawEvent: string): StreamMessageEvent | null {
   return JSON.parse(dataLines.join("\n")) as StreamMessageEvent;
 }
 
-function UserAvatar({ className = "" }: { className?: string }) {
+function UserAvatar({
+  className = "",
+  size = "default",
+}: {
+  className?: string;
+  size?: "default" | "message";
+}) {
+  const avatarSize = size === "message" ? "h-10 w-10" : "h-9 w-9";
+  const iconSize = size === "message" ? "h-5 w-5" : "h-[1.125rem] w-[1.125rem]";
+
   return (
     <div
-      className={`h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#E6D8C7] bg-[radial-gradient(circle_at_50%_30%,#f6c9a7_0_24%,#d79b78_25%_36%,#1f2f46_37%_100%)] shadow-[0_8px_22px_rgba(20,36,58,0.08)] ${className}`}
+      className={`${avatarSize} ${USER_AVATAR_SURFACE_CLASS} flex shrink-0 items-center justify-center overflow-hidden rounded-full text-[#FFF8EF] ${className}`}
     >
-      <div className="mt-[18px] h-5 w-full bg-gradient-to-b from-[#253854] to-[#14243A]" />
+      <UserRound className={`${iconSize} stroke-[2.25]`} />
     </div>
   );
 }
@@ -138,7 +173,7 @@ function UserAvatar({ className = "" }: { className?: string }) {
 function BotBadge({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#E6D8C7] bg-[#FFFDF9] shadow-[0_8px_22px_rgba(20,36,58,0.08)] ${className}`}
+      className={`h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full ${ASSISTANT_AVATAR_SURFACE_CLASS} ${className}`}
     >
       <Image
         src="/logo-img.png"
@@ -159,6 +194,9 @@ function Sidebar({
   onSelectChat,
   onClose,
   onOpenLogin,
+  user,
+  isLoadingUser,
+  onLogout,
 }: {
   currentChatId: string;
   chatHistory: ChatHistoryItem[];
@@ -167,6 +205,9 @@ function Sidebar({
   onSelectChat: (chatId: string) => void;
   onClose?: () => void;
   onOpenLogin: () => void;
+  user: MeResponse["user"];
+  isLoadingUser: boolean;
+  onLogout: () => void;
 }) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
@@ -268,7 +309,7 @@ function Sidebar({
       </div>
 
       <div className="relative z-30 shrink-0 border-t border-[#E6D8C7]/70 px-5 py-4">
-        {isAccountMenuOpen ? (
+        {!isLoadingUser && user && isAccountMenuOpen ? (
           <>
             <button
               type="button"
@@ -276,13 +317,22 @@ function Sidebar({
               onClick={() => setIsAccountMenuOpen(false)}
               aria-label="Close account menu"
             />
-            <div className="absolute bottom-[4.4rem] right-5 z-20 w-40 rounded-xl border border-[#E6D8C7] bg-[#FFFDF9] p-1.5 shadow-lg shadow-[#14243A]/10">
+            <div className="absolute bottom-[4.6rem] right-5 z-20 w-44 rounded-2xl border border-[#E6D8C7]/90 bg-[#FFFDF9] p-1.5 shadow-[0_18px_40px_rgba(20,36,58,0.14),0_1px_0_rgba(255,255,255,0.9)_inset] ring-1 ring-white/70">
+              <span
+                className="absolute -bottom-1.5 right-3 h-3 w-3 rotate-45 border-b border-r border-[#E6D8C7]/90 bg-[#FFFDF9]"
+                aria-hidden="true"
+              />
               <button
                 type="button"
-                onClick={() => setIsAccountMenuOpen(false)}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-[#6F6258] transition hover:bg-[#EEF4F6] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
+                onClick={() => {
+                  setIsAccountMenuOpen(false);
+                  onLogout();
+                }}
+                className="relative z-10 flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm font-semibold text-[#6F6258] transition hover:bg-[#FFF8EF] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
               >
-                <LogOut className="h-4 w-4 text-[#9A8D80]" />
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#EEF4F6] text-[#9A8D80]">
+                  <LogOut className="h-4 w-4" />
+                </span>
                 Log out
               </button>
             </div>
@@ -291,8 +341,12 @@ function Sidebar({
 
         <div className="flex items-center gap-3">
           <div
-            onClick={onOpenLogin}
+            onClick={user || isLoadingUser ? undefined : onOpenLogin}
             onKeyDown={(event) => {
+              if (user || isLoadingUser) {
+                return;
+              }
+
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onOpenLogin();
@@ -300,38 +354,82 @@ function Sidebar({
             }}
             role="button"
             tabIndex={0}
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-xl text-left transition hover:bg-[#EEF4F6] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
+            className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl text-left transition focus-visible:ring-2 focus-visible:ring-[#D49A52]/40 ${
+              user || isLoadingUser ? "" : "cursor-pointer hover:bg-[#EEF4F6]"
+            }`}
           >
-            <UserAvatar />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-[#172033]">
-                Guest User
-              </p>
-              <p className="truncate text-xs text-[#74685C]">Sign in to save</p>
-            </div>
+            {isLoadingUser ? (
+              <>
+                <span className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-[#E6D8C7]" />
+                <span className="min-w-0 flex-1 space-y-2">
+                  <span className="block h-3 w-24 animate-pulse rounded-full bg-[#E6D8C7]" />
+                  <span className="block h-2.5 w-32 animate-pulse rounded-full bg-[#EEF4F6]" />
+                </span>
+              </>
+            ) : user ? (
+              <UserProfileAvatar
+                avatarUrl={user.avatarUrl}
+                name={user.name}
+                email={user.email}
+                size={36}
+                className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-[#E6D8C7]"
+                fallbackClassName="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8A552B,#14243A)] text-sm font-bold text-[#FFF8EF] ring-1 ring-[#E6D8C7]"
+              />
+            ) : (
+              <UserAvatar />
+            )}
+            {!isLoadingUser ? (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[#172033]">
+                  {user?.name ?? user?.email ?? "Guest User"}
+                </p>
+                <p className="truncate text-xs text-[#74685C]">
+                  {user ? user.email ?? "Signed in" : "Sign in to save"}
+                </p>
+              </div>
+            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => setIsAccountMenuOpen((value) => !value)}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9A8D80] transition hover:bg-[#EEF4F6] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
-            aria-label="Account options"
-            aria-expanded={isAccountMenuOpen}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
+          {!isLoadingUser && user ? (
+            <button
+              type="button"
+              onClick={() => setIsAccountMenuOpen((value) => !value)}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9A8D80] transition hover:bg-[#EEF4F6] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
+              aria-label="Account options"
+              aria-expanded={isAccountMenuOpen}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
       </div>
     </aside>
   );
 }
 
-function UserMessageBubble({ content }: { content: string }) {
+function UserMessageBubble({
+  content,
+  user,
+}: {
+  content: string;
+  user: MeResponse["user"];
+}) {
   return (
-    <div className="flex items-start justify-end gap-0 sm:gap-4">
-      <div className="max-w-[36rem] whitespace-pre-line rounded-[1.25rem] rounded-tr-sm border border-white/45 bg-[linear-gradient(135deg,#8A552B,#14243A)] px-4 py-3 text-[0.94rem] leading-7 text-[#FFF8EF] shadow-[0_18px_42px_rgba(2,8,23,0.28),0_0_34px_rgba(255,255,255,0.24)] ring-1 ring-white/28 sm:px-6 sm:py-4">
+    <div className="flex items-start justify-end gap-0 sm:gap-3">
+      <div className={`max-w-[36rem] whitespace-pre-line rounded-[1.25rem] rounded-tr-sm px-4 py-3 text-[0.94rem] leading-7 text-[#FFF8EF] sm:px-6 sm:py-4 ${USER_MESSAGE_SURFACE_CLASS}`}>
         {content}
       </div>
-      <UserAvatar className="hidden sm:block" />
+      {user ? (
+        <UserProfileAvatar
+          avatarUrl={user.avatarUrl}
+          name={user.name}
+          email={user.email}
+          size={40}
+          className={`hidden h-10 w-10 shrink-0 rounded-full object-cover sm:mt-1 sm:block ${USER_AVATAR_SURFACE_CLASS}`}
+          fallbackClassName={`hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-[#FFF8EF] sm:mt-1 sm:flex ${USER_AVATAR_SURFACE_CLASS}`}
+        />
+      ) : (
+        <UserAvatar className="hidden sm:mt-1 sm:flex" size="message" />
+      )}
     </div>
   );
 }
@@ -388,20 +486,23 @@ function MessageActionButton({
 function AssistantMessageBubble({
   status,
   content,
+  errorCode,
   progress,
-  loadingLabel,
   onCopy,
   onShare,
 }: {
   status?: ChatMessage["status"];
   content: string;
+  errorCode?: string | null;
   progress?: number;
-  loadingLabel?: string;
   onCopy: (content: string, event: MouseEvent<HTMLButtonElement>) => void;
   onShare: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
   const isLoading = status === "loading";
   const isFailed = status === "failed";
+  const isQuotaExhausted =
+    errorCode === AI_QUOTA_EXHAUSTED_CODE ||
+    content === AI_QUOTA_EXHAUSTED_MESSAGE;
   const isStreaming = isLoading && content.trim().length > 0;
   const progressValue = Math.max(1, Math.min(100, Math.round(progress ?? 1)));
 
@@ -432,9 +533,9 @@ function AssistantMessageBubble({
   }
 
   return (
-    <div className="flex items-start gap-0 sm:gap-4">
-      <BotBadge className="hidden sm:flex" />
-      <article className="relative w-full overflow-hidden rounded-[1.25rem] rounded-tl-sm border border-white/80 bg-white p-5 text-[0.94rem] leading-7 text-[#26384D] shadow-[0_28px_70px_rgba(10,18,30,0.22),0_8px_18px_rgba(10,18,30,0.08),0_1px_0_rgba(255,255,255,0.95)_inset] ring-1 ring-[#E6D8C7]/60 sm:p-7">
+    <div className="flex items-start gap-0 sm:gap-3">
+      <BotBadge className="hidden sm:mt-1 sm:flex sm:h-10 sm:w-10" />
+      <article className={`relative w-full overflow-hidden rounded-[1.25rem] rounded-tl-sm p-5 text-[0.94rem] leading-7 text-[#26384D] sm:p-7 ${ASSISTANT_SURFACE_CLASS}`}>
         <div
           className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent"
           aria-hidden="true"
@@ -454,40 +555,67 @@ function AssistantMessageBubble({
             </div>
           ) : isLoading ? (
             <div className="space-y-5 text-[#74685C]">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="inline-flex items-center gap-2.5">
-                  <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF7EA] shadow-[0_8px_18px_rgba(138,85,43,0.12)] ring-1 ring-[#E6D8C7]/70">
-                    <span className="absolute h-full w-full animate-ping rounded-full bg-[#D49A52]/18" />
-                    <span className="relative h-2.5 w-2.5 rounded-full bg-[#D49A52]" />
-                  </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-[#26384D]">
-                      {loadingLabel ?? "Generating answer"}
-                    </span>
-                    <span className="mt-0.5 block text-xs font-medium text-[#74685C]">
-                      Organizing practical travel guidance
-                    </span>
-                  </span>
-                </div>
-              </div>
               {renderProgress("Drafting response")}
 
-              <div className="space-y-2.5 rounded-2xl border border-[#E6D8C7]/55 bg-[#FFFDF9]/72 p-4 shadow-[0_10px_24px_rgba(20,36,58,0.05)_inset]">
-                <div className="h-3 w-full animate-pulse rounded-full bg-[#E6D8C7]" />
-                <div className="h-3 w-11/12 animate-pulse rounded-full bg-[#EEF4F6]" />
-                <div className="h-3 w-4/5 animate-pulse rounded-full bg-[#EEF4F6]" />
+              <div className="space-y-5 rounded-2xl border border-[#E6D8C7]/55 bg-[#FFFDF9]/72 p-4 shadow-[0_10px_24px_rgba(20,36,58,0.05)_inset]">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-[#D49A52]" />
+                    <div className="h-3 w-36 animate-pulse rounded-full bg-[#E6D8C7]" />
+                    <div className="h-px flex-1 bg-gradient-to-r from-[#E6D8C7] to-transparent" />
+                  </div>
+                  <div className="space-y-2.5">
+                    <div className="h-3 w-full animate-pulse rounded-full bg-[#E6D8C7]" />
+                    <div className="h-3 w-11/12 animate-pulse rounded-full bg-[#EEF4F6]" />
+                    <div className="h-3 w-4/5 animate-pulse rounded-full bg-[#EEF4F6]" />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {[0, 1, 2].map((index) => (
+                    <div key={index} className="flex items-start gap-3">
+                      <div className="h-6.5 w-6.5 shrink-0 animate-pulse rounded-full border border-[#E6D8C7] bg-[#FFF8EF]" />
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="h-3 w-32 animate-pulse rounded-full bg-[#E6D8C7]" />
+                        <div className="h-3 w-full animate-pulse rounded-full bg-[#EEF4F6]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
             </div>
           ) : isFailed ? (
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
-                Generation failed
+            isQuotaExhausted ? (
+              <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50/90 p-4 text-amber-950 shadow-[0_14px_34px_rgba(146,64,14,0.10),0_1px_0_rgba(255,255,255,0.82)_inset]">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-200 bg-white text-amber-600 shadow-[0_8px_18px_rgba(146,64,14,0.10)]">
+                    <AlertTriangle className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-extrabold text-amber-950">
+                      AI usage limit reached
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-amber-900">
+                      {AI_QUOTA_EXHAUSTED_MESSAGE}
+                    </p>
+                  </div>
+                </div>
+                <p className="border-t border-amber-200/70 pt-3 text-xs font-medium leading-5 text-amber-800">
+                  Your question was saved, but ChinaTrip AI cannot generate a
+                  new answer right now.
+                </p>
               </div>
-              <div className="whitespace-pre-line text-[#6F3E36]">
-                {content || "Failed to generate answer. Please try again."}
+            ) : (
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-red-700">
+                  Generation failed
+                </div>
+                <div className="whitespace-pre-line text-[#6F3E36]">
+                  {content || "Failed to generate answer. Please try again."}
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <>
               <AnswerContent content={content} />
@@ -515,25 +643,30 @@ function AssistantMessageBubble({
 
 function MessageItem({
   message,
+  user,
   onCopy,
   onShare,
 }: {
   message: ChatMessage;
+  user: MeResponse["user"];
   onCopy: (content: string, event: MouseEvent<HTMLButtonElement>) => void;
-  onShare: (event: MouseEvent<HTMLButtonElement>) => void;
+  onShare: (
+    message: ChatMessage,
+    event: MouseEvent<HTMLButtonElement>,
+  ) => void;
 }) {
   if (message.role === "user") {
-    return <UserMessageBubble content={message.content} />;
+    return <UserMessageBubble content={message.content} user={user} />;
   }
 
   return (
     <AssistantMessageBubble
       status={message.status}
       content={message.content}
+      errorCode={message.errorCode}
       progress={message.progress}
-      loadingLabel={message.loadingLabel}
       onCopy={onCopy}
-      onShare={onShare}
+      onShare={(event) => onShare(message, event)}
     />
   );
 }
@@ -542,6 +675,73 @@ function waitForChatDetailLoadingAfterResponse() {
   return new Promise((resolve) => {
     setTimeout(resolve, CHAT_DETAIL_LOADING_AFTER_RESPONSE_MS);
   });
+}
+
+function ConversationSkeleton() {
+  return (
+    <div className="mx-auto w-full max-w-[52rem] space-y-7">
+      <div className="flex items-start justify-end gap-0 sm:gap-3">
+        <div
+          className={`w-full max-w-[36rem] rounded-[1.25rem] rounded-tr-sm px-4 py-3 sm:px-6 sm:py-4 ${USER_MESSAGE_SURFACE_CLASS}`}
+        >
+          <div className="space-y-2.5">
+            <div className="h-3 w-11/12 animate-pulse rounded-full bg-white/36" />
+            <div className="h-3 w-7/12 animate-pulse rounded-full bg-white/24" />
+          </div>
+        </div>
+        <span
+          className={`hidden h-10 w-10 shrink-0 animate-pulse rounded-full sm:mt-1 sm:block ${USER_AVATAR_SURFACE_CLASS}`}
+        />
+      </div>
+
+      <div className="flex items-start gap-0 sm:gap-3">
+        <span
+          className={`hidden h-10 w-10 shrink-0 animate-pulse rounded-full sm:mt-1 sm:block ${ASSISTANT_AVATAR_SURFACE_CLASS}`}
+        />
+        <div
+          className={`relative w-full overflow-hidden rounded-[1.25rem] rounded-tl-sm p-5 sm:p-7 ${ASSISTANT_SURFACE_CLASS}`}
+        >
+          <div
+            className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent"
+            aria-hidden="true"
+          />
+          <div className="space-y-5">
+            <div className="flex items-center gap-3">
+              <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#D49A52]" />
+              <span className="h-3 w-36 animate-pulse rounded-full bg-[#D49A52]/45" />
+              <span className="h-px min-w-6 flex-1 bg-gradient-to-r from-[#D49A52]/25 to-transparent" />
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[#D49A52] [animation-delay:-0.2s]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[#D49A52] [animation-delay:-0.1s]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[#D49A52]" />
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              <div className="h-3 w-full animate-pulse rounded-full bg-[#E6D8C7]" />
+              <div className="h-3 w-11/12 animate-pulse rounded-full bg-[#EEF4F6]" />
+              <div className="h-3 w-5/6 animate-pulse rounded-full bg-[#EEF4F6]" />
+              <div className="h-3 w-2/3 animate-pulse rounded-full bg-[#EEF4F6]" />
+            </div>
+            <div className="space-y-4 border-t border-[#E6D8C7]/60 pt-5">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="flex items-start gap-3.5">
+                  <span className="mt-0.5 inline-flex h-6.5 w-6.5 shrink-0 animate-pulse rounded-full border border-[#E6D8C7] bg-[#FFF8EF]" />
+                  <span className="min-w-0 flex-1 space-y-2">
+                    <span className="block h-3 w-40 animate-pulse rounded-full bg-[#D49A52]/30" />
+                    <span className="block h-3 w-full animate-pulse rounded-full bg-[#EEF4F6]" />
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 border-t border-[#E6D8C7]/70 pt-4">
+              <span className="h-8 w-20 animate-pulse rounded-xl border border-white/80 bg-white/55 ring-1 ring-[#E6D8C7]/50" />
+              <span className="h-8 w-20 animate-pulse rounded-xl border border-white/80 bg-white/55 ring-1 ring-[#E6D8C7]/50" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function ChatView({ chatId }: { chatId: string }) {
@@ -576,9 +776,12 @@ export function ChatView({ chatId }: { chatId: string }) {
     y: number;
   } | null>(null);
   const [chat, setChat] = useState<MockChat | null>(null);
+  const { user, isLoadingUser, refreshUser } = useCurrentUser();
   const currentTitle = chat?.title;
   const shouldShowHistorySkeleton =
     isLoadingChatDetail && detailLoadingReason === "history";
+  const shouldShowConversationSkeleton =
+    shouldShowHistorySkeleton || isLoadingChatDetail || isLoadingUser;
   const rowVirtualizer = useVirtualizer({
     count: chat?.messages.length ?? 0,
     getScrollElement: () => scrollParentRef.current,
@@ -694,12 +897,32 @@ export function ChatView({ chatId }: { chatId: string }) {
   }
 
   function takeTypewriterChunk(text: string) {
-    if (text.length <= 5) {
+    if (text.length <= 6) {
       return text;
     }
 
-    const chunkSize = Math.min(5, Math.max(2, Math.ceil(text.length / 24)));
+    const hasCjkText = /[\u3400-\u9FFF]/.test(text);
+    const chunkSize = hasCjkText
+      ? text.length > 240
+        ? 16
+        : text.length > 120
+          ? 10
+          : text.length > 48
+            ? 6
+            : 3
+      : text.length > 300
+        ? 22
+        : text.length > 160
+          ? 14
+          : text.length > 72
+            ? 8
+            : 4;
     const candidate = text.slice(0, chunkSize);
+
+    if (hasCjkText) {
+      return candidate;
+    }
+
     const nextCharacter = text.at(chunkSize);
     const lastSpaceIndex = candidate.lastIndexOf(" ");
 
@@ -941,19 +1164,21 @@ export function ChatView({ chatId }: { chatId: string }) {
 
       if (!response.ok || !response.body) {
         let messageText = response.statusText || "Failed to generate answer.";
+        let errorCode = "STREAM_REQUEST_FAILED";
 
         try {
           const body = await response.json() as {
-            error?: { message?: string };
+            error?: { code?: string; message?: string };
           };
           messageText = body.error?.message ?? messageText;
+          errorCode = body.error?.code ?? errorCode;
         } catch {
           // Keep the HTTP status text fallback.
         }
 
         throw new ApiClientError({
           status: response.status,
-          code: "STREAM_REQUEST_FAILED",
+          code: errorCode,
           message: messageText,
         });
       }
@@ -1088,6 +1313,7 @@ export function ChatView({ chatId }: { chatId: string }) {
                     content: event.error.message,
                     createdAt: new Date().toISOString(),
                     status: "failed" as const,
+                    errorCode: event.error.code,
                   };
 
             updateChatByIdAndCache(targetChatId, (currentChat) => ({
@@ -1118,6 +1344,8 @@ export function ChatView({ chatId }: { chatId: string }) {
                     ? error.message
                     : "Failed to generate answer.",
                 status: "failed",
+                errorCode:
+                  error instanceof ApiClientError ? error.code : undefined,
                 progress: undefined,
                 loadingLabel: undefined,
               }
@@ -1303,7 +1531,7 @@ export function ChatView({ chatId }: { chatId: string }) {
     const loadingMessage: ChatMessage = {
       id: `assistant-initial-loading-${chat.id}`,
       role: "assistant",
-      content: "Generating answer",
+      content: "",
       createdAt: new Date().toISOString(),
       status: "loading",
       progress: 1,
@@ -1363,7 +1591,7 @@ export function ChatView({ chatId }: { chatId: string }) {
     const loadingMessage: ChatMessage = {
       id: loadingMessageId,
       role: "assistant",
-      content: "Generating answer",
+      content: "",
       createdAt: new Date().toISOString(),
       status: "loading",
       progress: 1,
@@ -1409,13 +1637,61 @@ export function ChatView({ chatId }: { chatId: string }) {
     void copyText(content, "Copied", event.currentTarget);
   }
 
-  function handleShare(event: MouseEvent<HTMLButtonElement>) {
-    const shareUrl = `${window.location.origin}/share/mock`;
-    void copyText(shareUrl, "Share link copied", event.currentTarget);
+  async function handleShare(
+    assistantMessage: ChatMessage,
+    event: MouseEvent<HTMLButtonElement>,
+  ) {
+    const target = event.currentTarget;
+
+    if (!chat || assistantMessage.status !== "complete") {
+      showToast("Only complete answers can be shared.", target);
+      return;
+    }
+
+    const assistantIndex = chat.messages.findIndex(
+      (message) => message.id === assistantMessage.id,
+    );
+    const userMessage = chat.messages[assistantIndex - 1];
+
+    if (!userMessage || userMessage.role !== "user") {
+      showToast("Question-answer pair not found.", target);
+      return;
+    }
+
+    try {
+      const response = await apiFetch<CreateSharedAnswerResponse>(
+        "/shared-answers",
+        {
+          chatId: chat.id,
+          userMessageId: userMessage.id,
+          assistantMessageId: assistantMessage.id,
+        },
+      );
+
+      await copyText(response.share.url, "Share link copied", target);
+    } catch (error) {
+      showToast(
+        error instanceof ApiClientError
+          ? error.message
+          : "Failed to create share link.",
+        target,
+      );
+    }
   }
 
   function handleNewChat() {
     router.push("/");
+  }
+
+  async function handleLogout() {
+    try {
+      await apiFetch<LogoutResponse>("/auth/logout", {
+        method: "POST",
+      });
+      await refreshUser();
+    } catch {
+      // Keep the current UI state if logout fails.
+    }
   }
 
   function handleSelectChat(selectedChatId: string) {
@@ -1445,6 +1721,11 @@ export function ChatView({ chatId }: { chatId: string }) {
             onNewChat={handleNewChat}
             onSelectChat={handleSelectChat}
             onOpenLogin={() => setIsLoginModalOpen(true)}
+            user={user}
+            isLoadingUser={isLoadingUser}
+            onLogout={() => {
+              void handleLogout();
+            }}
           />
         </div>
 
@@ -1465,6 +1746,11 @@ export function ChatView({ chatId }: { chatId: string }) {
                 onSelectChat={handleSelectChatFromDrawer}
                 onClose={() => setIsDrawerOpen(false)}
                 onOpenLogin={() => setIsLoginModalOpen(true)}
+                user={user}
+                isLoadingUser={isLoadingUser}
+                onLogout={() => {
+                  void handleLogout();
+                }}
               />
             </div>
           </div>
@@ -1523,52 +1809,8 @@ export function ChatView({ chatId }: { chatId: string }) {
             ref={scrollParentRef}
             className="relative z-10 min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-12 sm:px-7 sm:pb-5 sm:pt-16"
           >
-            {shouldShowHistorySkeleton ? (
-              <div className="mx-auto w-full max-w-[52rem] space-y-7">
-                <div className="flex items-start justify-end gap-0 sm:gap-4">
-                  <div className="w-full max-w-[36rem] rounded-[1.25rem] rounded-tr-sm border border-white/35 bg-[linear-gradient(135deg,rgba(138,85,43,0.72),rgba(20,36,58,0.82))] px-4 py-3 shadow-[0_18px_42px_rgba(2,8,23,0.22),0_0_28px_rgba(255,255,255,0.16)] ring-1 ring-white/22 sm:px-6 sm:py-4">
-                    <div className="space-y-2.5">
-                      <div className="h-3 w-11/12 animate-pulse rounded-full bg-white/36" />
-                      <div className="h-3 w-7/12 animate-pulse rounded-full bg-white/24" />
-                    </div>
-                  </div>
-                  <span className="hidden h-9 w-9 shrink-0 animate-pulse rounded-full border border-[#E6D8C7] bg-[#E6D8C7] sm:block" />
-                </div>
-
-                <div className="flex items-start gap-0 sm:gap-4">
-                  <span className="hidden h-9 w-9 shrink-0 animate-pulse rounded-full border border-[#E6D8C7] bg-white/86 sm:block" />
-                  <div className="relative w-full overflow-hidden rounded-[1.25rem] rounded-tl-sm border border-white/80 bg-white/90 p-5 shadow-[0_28px_70px_rgba(10,18,30,0.18),0_8px_18px_rgba(10,18,30,0.08),0_1px_0_rgba(255,255,255,0.95)_inset] ring-1 ring-[#E6D8C7]/60 sm:p-7">
-                    <div
-                      className="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent"
-                      aria-hidden="true"
-                    />
-                    <div className="space-y-5">
-                      <div className="flex items-center gap-3">
-                        <span className="h-3 w-32 animate-pulse rounded-full bg-[#D49A52]/45" />
-                        <span className="flex items-center gap-1">
-                          <span className="h-2 w-2 animate-bounce rounded-full bg-[#D49A52] [animation-delay:-0.2s]" />
-                          <span className="h-2 w-2 animate-bounce rounded-full bg-[#D49A52] [animation-delay:-0.1s]" />
-                          <span className="h-2 w-2 animate-bounce rounded-full bg-[#D49A52]" />
-                        </span>
-                      </div>
-                      <div className="space-y-2.5">
-                        <div className="h-3 w-full animate-pulse rounded-full bg-[#E6D8C7]" />
-                        <div className="h-3 w-11/12 animate-pulse rounded-full bg-[#EEF4F6]" />
-                        <div className="h-3 w-5/6 animate-pulse rounded-full bg-[#EEF4F6]" />
-                        <div className="h-3 w-2/3 animate-pulse rounded-full bg-[#EEF4F6]" />
-                      </div>
-                      <div className="flex gap-2 border-t border-[#E6D8C7]/70 pt-4">
-                        <span className="h-8 w-20 animate-pulse rounded-xl border border-white/80 bg-white/55 ring-1 ring-[#E6D8C7]/50" />
-                        <span className="h-8 w-20 animate-pulse rounded-xl border border-white/80 bg-white/55 ring-1 ring-[#E6D8C7]/50" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : isLoadingChatDetail ? (
-              <div className="mx-auto w-full max-w-[52rem] py-10 text-center text-sm font-semibold text-white/70">
-                Loading conversation...
-              </div>
+            {shouldShowConversationSkeleton ? (
+              <ConversationSkeleton />
             ) : chatError ? (
               <div className="mx-auto w-full max-w-[52rem] rounded-[1.25rem] border border-white/70 bg-white/88 p-5 text-sm font-medium text-[#74685C] shadow-[0_18px_45px_rgba(20,36,58,0.12)]">
                 {chatError}
@@ -1597,6 +1839,7 @@ export function ChatView({ chatId }: { chatId: string }) {
                     >
                       <MessageItem
                         message={chatMessage}
+                        user={user}
                         onCopy={handleCopy}
                         onShare={handleShare}
                       />
@@ -1614,14 +1857,17 @@ export function ChatView({ chatId }: { chatId: string }) {
                 onChange={setMessage}
                 onSubmit={handleSubmit}
                 placeholder={
-                  isLoadingChatDetail
-                    ? "Loading conversation..."
+                  isLoadingChatDetail || isLoadingUser
+                    ? "Preparing conversation..."
                     : isGenerating
-                    ? "Generating answer..."
+                    ? "Please wait..."
                     : "Ask about your China trip..."
                 }
                 disabled={
-                  isLoadingChatDetail || Boolean(chatError) || isGenerating
+                  isLoadingChatDetail ||
+                  isLoadingUser ||
+                  Boolean(chatError) ||
+                  isGenerating
                 }
               />
 

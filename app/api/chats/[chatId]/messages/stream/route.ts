@@ -1,7 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { apiError } from "@/lib/api/server";
 import { SendMessageResponse, StreamMessageEvent } from "@/lib/api/types";
-import { getAnonymousIdFromCookie } from "@/lib/auth/anonymous-session";
+import {
+  CurrentIdentity,
+  createChatOwnerWhere,
+  getCurrentIdentity,
+} from "@/lib/auth/current-identity";
 import { AiProviderError, streamTravelAnswer } from "@/lib/ai";
 import { TRAVEL_ANSWER_PROMPT_VERSION } from "@/lib/ai/prompts/travel-answer";
 import { prisma } from "@/lib/prisma";
@@ -251,11 +255,11 @@ async function persistSuccessfulAnswer({
 
 async function prepareMessageGeneration({
   chatId,
-  anonymousId,
+  identity,
   message,
 }: {
   chatId: string;
-  anonymousId: string;
+  identity: CurrentIdentity;
   message: string;
 }) {
   return prisma.$transaction(async (tx) => {
@@ -265,9 +269,7 @@ async function prepareMessageGeneration({
         status: {
           not: "deleted",
         },
-        anonymousSession: {
-          anonymousId,
-        },
+        ...createChatOwnerWhere(identity),
       },
       include: {
         messages: {
@@ -363,13 +365,8 @@ async function prepareMessageGeneration({
 export async function POST(request: Request, context: RouteContext) {
   const requestStartedAt = Date.now();
   const { chatId } = await context.params;
-  const anonymousId = await getAnonymousIdFromCookie();
 
   if (!isUuid(chatId)) {
-    return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
-  }
-
-  if (!anonymousId) {
     return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
   }
 
@@ -397,9 +394,10 @@ export async function POST(request: Request, context: RouteContext) {
   let prepared: Awaited<ReturnType<typeof prepareMessageGeneration>>;
 
   try {
+    const identity = await getCurrentIdentity();
     prepared = await prepareMessageGeneration({
       chatId,
-      anonymousId,
+      identity,
       message,
     });
   } catch (error) {

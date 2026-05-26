@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { apiError } from "@/lib/api/server";
 import { SendMessageResponse } from "@/lib/api/types";
-import { getAnonymousIdFromCookie } from "@/lib/auth/anonymous-session";
+import {
+  createChatOwnerWhere,
+  getCurrentIdentity,
+} from "@/lib/auth/current-identity";
 import { generateTravelAnswer, AiProviderError } from "@/lib/ai";
 import { TRAVEL_ANSWER_PROMPT_VERSION } from "@/lib/ai/prompts/travel-answer";
 import { prisma } from "@/lib/prisma";
@@ -161,13 +164,8 @@ function isUniqueSequenceError(error: unknown) {
 
 export async function POST(request: Request, context: RouteContext) {
   const { chatId } = await context.params;
-  const anonymousId = await getAnonymousIdFromCookie();
 
   if (!isUuid(chatId)) {
-    return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
-  }
-
-  if (!anonymousId) {
     return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
   }
 
@@ -193,6 +191,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   try {
+    const identity = await getCurrentIdentity();
     const prepared = await prisma.$transaction(async (tx) => {
       const chat = await tx.chat.findFirst({
         where: {
@@ -200,9 +199,7 @@ export async function POST(request: Request, context: RouteContext) {
           status: {
             not: "deleted",
           },
-          anonymousSession: {
-            anonymousId,
-          },
+          ...createChatOwnerWhere(identity),
         },
         include: {
           messages: {

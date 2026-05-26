@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api/server";
 import { ChatDetailResponse } from "@/lib/api/types";
-import { getAnonymousIdFromCookie } from "@/lib/auth/anonymous-session";
+import {
+  createChatOwnerWhere,
+  getCurrentIdentity,
+} from "@/lib/auth/current-identity";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -20,26 +23,20 @@ function isUuid(value: string) {
 
 export async function GET(_request: Request, context: RouteContext) {
   const { chatId } = await context.params;
-  const anonymousId = await getAnonymousIdFromCookie();
 
   if (!isUuid(chatId)) {
     return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
   }
 
-  if (!anonymousId) {
-    return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
-  }
-
   try {
+    const identity = await getCurrentIdentity();
     const chat = await prisma.chat.findFirst({
       where: {
         id: chatId,
         status: {
           not: "deleted",
         },
-        anonymousSession: {
-          anonymousId,
-        },
+        ...createChatOwnerWhere(identity),
       },
       include: {
         messages: {

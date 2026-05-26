@@ -1,22 +1,8 @@
-import { AiProviderConfigError } from "../errors";
-import type {
-  AiProviderAdapter,
-  GenerateTravelAnswerResult,
-  StreamTravelAnswerChunk,
-} from "../types";
+import { getDeepSeekConfig } from "../config";
+import { createOpenAiCompatibleProvider } from "./openai-compatible";
 
-export const deepseekProvider: AiProviderAdapter = {
+export const deepseekProvider = createOpenAiCompatibleProvider({
   provider: "deepseek",
-  async generateAnswer(): Promise<GenerateTravelAnswerResult> {
-    throw new AiProviderConfigError(
-      "deepseek",
-      "DeepSeek provider is reserved but not implemented yet.",
-    );
-  },
-  async *streamAnswer(): AsyncGenerator<StreamTravelAnswerChunk> {
-    throw new AiProviderConfigError(
-      "deepseek",
-      "DeepSeek provider is reserved but not implemented yet.",
-    );
-  },
-};
+  displayName: "DeepSeek",
+  getConfig: getDeepSeekConfig,
+});

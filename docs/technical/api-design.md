@@ -51,6 +51,7 @@ UNAUTHORIZED
 FORBIDDEN
 AI_GENERATION_FAILED
 RATE_LIMITED
+AI_QUOTA_EXHAUSTED
 INTERNAL_ERROR
 ```
 
@@ -453,6 +454,7 @@ Errors before stream starts:
 - `MESSAGE_GENERATION_IN_PROGRESS`
 - `FORBIDDEN`
 - `AI_GENERATION_FAILED`
+- `AI_QUOTA_EXHAUSTED`
 - `INTERNAL_ERROR`
 
 ## Share APIs
@@ -689,16 +691,18 @@ type StreamAnswerChunk =
 
 Rules:
 
-- First API implementation may use `provider=mock`.
-- Doubao is the target primary provider.
+- Local development may use `provider=mock`.
+- Doubao is the target primary provider for the release candidate.
 - DeepSeek is the planned fallback provider.
 - Default generation should prefer concise answers.
+- Chat UI should prefer `POST /api/chats/:chatId/messages/stream`; the non-streaming endpoint remains available as a fallback.
 - Default provider parameters:
   - `temperature=0.3`
   - `max_tokens=600`
 - `AI_TEMPERATURE` and `AI_MAX_OUTPUT_TOKENS` may override these defaults.
 - Chat history sent to the provider should be trimmed to the most recent relevant messages.
 - Every generation attempt should create an `ai_usage_logs` row when possible.
+- Provider quota or billing exhaustion must be normalized to `AI_QUOTA_EXHAUSTED` and stored on the failed assistant message.
 
 ## Endpoint Priority
 

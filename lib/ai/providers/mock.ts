@@ -15,12 +15,12 @@ function createMockAnswer(request: AiProviderRequest): GenerateTravelAnswerResul
 
   return {
     content: [
-      "Here is a practical starting point for your China trip:",
+      "这是一个适合中国旅行的实用起点：",
       "",
-      `- Main question: ${lastUserMessage?.content ?? "your travel question"}`,
-      "- Confirm city, date, budget, and passport or visa constraints before booking.",
-      "- Keep your hotel address in Chinese and English for taxis, delivery, and check-in.",
-      "- Useful phrase: 请问这里怎么走？(Qing wen zhe li zen me zou?) - How do I get here?",
+      `- 主要问题：${lastUserMessage?.content ?? "你的中国旅行问题"}`,
+      "- 预订前先确认城市、日期、预算，以及护照或签证相关限制。",
+      "- 保存酒店的中文和英文地址，方便打车、点外卖和办理入住。",
+      "- 实用中文：请问这里怎么走？意思是 How do I get here?",
     ].join("\n"),
     provider: "mock",
     model: MOCK_MODEL,

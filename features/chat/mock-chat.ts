@@ -6,6 +6,7 @@ export type ChatMessage = {
   content: string;
   createdAt: string;
   status?: "complete" | "loading" | "failed";
+  errorCode?: string | null;
   progress?: number;
   loadingLabel?: string;
 };

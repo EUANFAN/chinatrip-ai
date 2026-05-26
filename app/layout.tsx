@@ -1,10 +1,46 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chinatrip.ai";
+const siteName = "ChinaTrip AI";
+const siteDescription =
+  "An AI travel assistant for foreign visitors in China, with practical help for itineraries, payments, transport, apps, food, and local situations.";
+
 export const metadata: Metadata = {
-  title: "ChinaTrip AI - AI Travel Guide for China",
-  description:
-    "Ask practical questions about China travel, payments, transport, apps, food, and local tips.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "ChinaTrip AI - AI Travel Guide for China",
+    template: `%s | ${siteName}`,
+  },
+  description: siteDescription,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "ChinaTrip AI - AI Travel Guide for China",
+    description: siteDescription,
+    url: "/",
+    siteName,
+    type: "website",
+    images: [
+      {
+        url: "/home-great-wall.png",
+        width: 1200,
+        height: 630,
+        alt: "ChinaTrip AI travel guide for China",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ChinaTrip AI - AI Travel Guide for China",
+    description: siteDescription,
+    images: ["/home-great-wall.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

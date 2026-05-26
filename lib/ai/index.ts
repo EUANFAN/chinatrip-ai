@@ -23,7 +23,8 @@ export async function generateTravelAnswer(
   input: GenerateTravelAnswerInput,
 ): Promise<GenerateTravelAnswerResult> {
   const language = input.language ?? "en";
-  const provider = PROVIDERS[getConfiguredProvider()];
+  const providerName = getConfiguredProvider();
+  const provider = PROVIDERS[providerName];
 
   return provider.generateAnswer({
     chatId: input.chatId,
@@ -31,6 +32,10 @@ export async function generateTravelAnswer(
     messages: buildTravelAnswerMessages({
       ...input,
       language,
+      metadata: {
+        ...input.metadata,
+        provider: providerName,
+      },
     }),
     promptVersion: TRAVEL_ANSWER_PROMPT_VERSION,
   });
@@ -40,13 +45,18 @@ export async function* streamTravelAnswer(
   input: GenerateTravelAnswerInput & { signal?: AbortSignal },
 ): AsyncGenerator<StreamTravelAnswerChunk> {
   const language = input.language ?? "en";
-  const provider = PROVIDERS[getConfiguredProvider()];
+  const providerName = getConfiguredProvider();
+  const provider = PROVIDERS[providerName];
   const request = {
     chatId: input.chatId,
     language,
     messages: buildTravelAnswerMessages({
       ...input,
       language,
+      metadata: {
+        ...input.metadata,
+        provider: providerName,
+      },
     }),
     promptVersion: TRAVEL_ANSWER_PROMPT_VERSION,
     signal: input.signal,

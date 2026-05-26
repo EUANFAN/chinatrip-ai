@@ -2,98 +2,86 @@
 
 import { ChatInput } from "@/components/ChatInput";
 import { AnswerContent } from "@/components/AnswerContent";
+import { ApiClientError, apiFetch } from "@/lib/api/client";
 import {
-  ChatMessage,
-  DEFAULT_QUESTION,
-  LAST_QUESTION_KEY,
-  createInitialMockChat,
-} from "@/features/chat/mock-chat";
-import {
-  ArrowRight,
-  Check,
-  Copy,
-  ExternalLink,
-  MessageCircle,
-  Share2,
-} from "lucide-react";
+  CreateChatFromShareResponse,
+  CreateChatResponse,
+  SharedAnswerResponse,
+} from "@/lib/api/types";
+import { formatChinaTripDate } from "@/lib/time/format";
+import { ArrowRight, Check, Copy, ExternalLink, Share2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-function getFirstCompletePair(messages: ChatMessage[]) {
-  const question = messages.find((message) => message.role === "user");
-  const answer = messages.find(
-    (message) => message.role === "assistant" && message.status !== "loading",
-  );
+type ShareSnapshot = SharedAnswerResponse["share"];
 
-  return { question, answer };
-}
-
-function getRelatedPairs(messages: ChatMessage[], count = 2) {
-  const pairs: Array<{ question: ChatMessage; answer: ChatMessage }> = [];
-
-  for (let index = 0; index < messages.length - 1; index += 1) {
-    const question = messages[index];
-    const answer = messages[index + 1];
-
-    if (
-      question?.role === "user" &&
-      answer?.role === "assistant" &&
-      answer.status !== "loading"
-    ) {
-      pairs.push({ question, answer });
-    }
-
-    if (pairs.length >= count + 1) {
-      break;
-    }
-  }
-
-  return pairs.slice(1, count + 1);
-}
-
-function formatSharedDate(value?: string) {
-  if (!value) {
-    return "Shared travel answer";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function previewText(value: string) {
-  const normalized = value.replace(/\s+/g, " ").trim();
-
-  return normalized.length > 150 ? `${normalized.slice(0, 150)}...` : normalized;
-}
-
-export function ShareView() {
+export function ShareView({
+  shareId,
+  initialShare,
+}: {
+  shareId?: string;
+  initialShare?: ShareSnapshot;
+}) {
   const router = useRouter();
   const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [question, setQuestion] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [share, setShare] = useState<ShareSnapshot | null>(
+    initialShare ?? null,
+  );
+  const [isLoadingShare, setIsLoadingShare] = useState(
+    Boolean(shareId && !initialShare),
+  );
+  const [shareError, setShareError] = useState<string | null>(null);
 
-  const sharedChat = useMemo(
-    () => createInitialMockChat(DEFAULT_QUESTION),
-    [],
-  );
-  const { question: sharedQuestion, answer: sharedAnswer } = useMemo(
-    () => getFirstCompletePair(sharedChat.messages),
-    [sharedChat.messages],
-  );
-  const relatedPairs = useMemo(
-    () => getRelatedPairs(sharedChat.messages, 2),
-    [sharedChat.messages],
-  );
-
-  const sharedQuestionText = sharedQuestion?.content ?? DEFAULT_QUESTION;
+  const sharedQuestionText = share?.question ?? "Shared China travel question";
   const sharedAnswerText =
-    sharedAnswer?.content ??
-    "ChinaTrip AI can help answer practical travel questions about payments, transport, food, apps, and trip planning.";
+    share?.answer ??
+    "This shared answer could not be loaded. Please check the link and try again.";
+
+  useEffect(() => {
+    if (!shareId || initialShare) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadShare() {
+      setIsLoadingShare(true);
+      setShareError(null);
+
+      try {
+        const response = await apiFetch<SharedAnswerResponse>(
+          `/share/${shareId}`,
+        );
+
+        if (isMounted) {
+          setShare(response.share);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setShareError(
+            error instanceof ApiClientError
+              ? error.message
+              : "Failed to load shared answer.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingShare(false);
+        }
+      }
+    }
+
+    void loadShare();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shareId, initialShare]);
 
   function showToast(message: string) {
     setToast(message);
@@ -122,15 +110,38 @@ export function ShareView() {
     void copyText(window.location.href, "Share link copied");
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const trimmedQuestion = question.trim();
 
     if (!trimmedQuestion) {
       return;
     }
 
-    window.sessionStorage.setItem(LAST_QUESTION_KEY, trimmedQuestion);
-    router.push("/chat/mock");
+    setIsSubmitting(true);
+
+    try {
+      const response = share?.shareId
+        ? await apiFetch<CreateChatFromShareResponse>(
+            `/share/${share.shareId}/chats`,
+            {
+              message: trimmedQuestion,
+            },
+          )
+        : await apiFetch<CreateChatResponse>("/chats", {
+            message: trimmedQuestion,
+            source: "share",
+          });
+
+      router.push(`/chat/${response.chat.id}`);
+    } catch (error) {
+      showToast(
+        error instanceof ApiClientError
+          ? error.message
+          : "Failed to start chat.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -174,46 +185,61 @@ export function ShareView() {
               Shared travel answer
             </div>
             <span className="text-sm text-[#756A60]">
-              {formatSharedDate(sharedAnswer?.createdAt)}
+              {formatChinaTripDate(share?.createdAt)}
             </span>
           </div>
 
-          <div className="mt-7">
-            <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#9A8D80]">
-              Question
-            </p>
-            <h1 className="mt-3 w-full rounded-[1.25rem] rounded-tr-sm bg-[linear-gradient(135deg,#8A552B,#14243A)] px-4 py-3 text-2xl font-bold leading-tight tracking-tight text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10)] sm:px-6 sm:py-4 sm:text-4xl">
-              {sharedQuestionText}
-            </h1>
-          </div>
-
-          <article className="mt-7 rounded-[1.25rem] rounded-tl-sm border border-[#E6D8C7] bg-white p-5 text-[0.94rem] leading-7 text-[#26384D] shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-7">
-            <div className="flex items-center gap-3 border-b border-[#E6D8C7]/70 pb-4">
-              <Image
-                src="/logo-img.png"
-                alt="ChinaTrip AI"
-                width={32}
-                height={32}
-                className="h-8 w-8 rounded-full bg-[#FFFDF9] object-cover ring-1 ring-[#E6D8C7]"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#172033]">
-                  ChinaTrip AI
+          {isLoadingShare ? (
+            <div className="mt-7 space-y-4">
+              <div className="h-4 w-20 animate-pulse rounded-full bg-[#E6D8C7]" />
+              <div className="h-20 animate-pulse rounded-[1.25rem] bg-[#8A552B]/20" />
+              <div className="h-40 animate-pulse rounded-[1.25rem] bg-white" />
+            </div>
+          ) : shareError ? (
+            <div className="mt-7 rounded-[1.25rem] border border-[#E6D8C7] bg-white p-6 text-sm leading-6 text-[#6F6258]">
+              {shareError}
+            </div>
+          ) : (
+            <>
+              <div className="mt-7">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#9A8D80]">
+                  Question
                 </p>
-                <p className="truncate text-xs text-[#756A60]">
-                  Practical guidance for China travel
-                </p>
+                <h1 className="mt-3 w-full rounded-[1.25rem] rounded-tr-sm bg-[linear-gradient(135deg,#8A552B,#14243A)] px-4 py-3 text-2xl font-bold leading-tight tracking-tight text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10)] sm:px-6 sm:py-4 sm:text-4xl">
+                  {sharedQuestionText}
+                </h1>
               </div>
-            </div>
-            <div className="mt-5">
-              <AnswerContent content={sharedAnswerText} />
-            </div>
-          </article>
+
+              <article className="mt-7 rounded-[1.25rem] rounded-tl-sm border border-[#E6D8C7] bg-white p-5 text-[0.94rem] leading-7 text-[#26384D] shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-7">
+                <div className="flex items-center gap-3 border-b border-[#E6D8C7]/70 pb-4">
+                  <Image
+                    src="/logo-img.png"
+                    alt="ChinaTrip AI"
+                    width={32}
+                    height={32}
+                    className="h-8 w-8 rounded-full bg-[#FFFDF9] object-cover ring-1 ring-[#E6D8C7]"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#172033]">
+                      ChinaTrip AI
+                    </p>
+                    <p className="truncate text-xs text-[#756A60]">
+                      Practical guidance for China travel
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-5">
+                  <AnswerContent content={sharedAnswerText} />
+                </div>
+              </article>
+            </>
+          )}
 
           <div className="mt-5 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={handleCopyAnswer}
+              disabled={!share}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E6D8C7] bg-[#FFFDF9] px-3 text-sm font-medium text-[#6F6258] transition hover:bg-[#F3EEE7] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
             >
               <Copy className="h-4 w-4 text-amber-600" />
@@ -222,6 +248,7 @@ export function ShareView() {
             <button
               type="button"
               onClick={handleCopyLink}
+              disabled={!share}
               className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E6D8C7] bg-[#FFFDF9] px-3 text-sm font-medium text-[#6F6258] transition hover:bg-[#F3EEE7] hover:text-[#14243A] focus-visible:ring-2 focus-visible:ring-[#D49A52]/40"
             >
               <ExternalLink className="h-4 w-4 text-sky-600" />
@@ -229,36 +256,6 @@ export function ShareView() {
             </button>
           </div>
         </section>
-
-        {relatedPairs.length > 0 ? (
-          <section aria-labelledby="related-questions">
-            <div className="mb-4 flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-[#9A8D80]" />
-              <h2
-                id="related-questions"
-                className="text-base font-semibold text-[#14243A]"
-              >
-                Related travel context
-              </h2>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {relatedPairs.map((pair) => (
-                <article
-                  key={pair.question.id}
-                  className="rounded-xl border border-[#E6D8C7] bg-[#FFFDF9] p-4 shadow-[0_18px_45px_rgba(20,36,58,0.06)]"
-                >
-                  <h3 className="line-clamp-2 text-sm font-semibold leading-6 text-[#172033]">
-                    {pair.question.content}
-                  </h3>
-                  <p className="mt-3 line-clamp-4 text-sm leading-6 text-[#6F6258]">
-                    {previewText(pair.answer.content)}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
 
         <section className="rounded-[1.25rem] border border-[#E6D8C7] bg-[#FFFDF9] p-5 shadow-[0_18px_45px_rgba(20,36,58,0.06)] sm:p-7">
           <div className="mb-5">
@@ -275,6 +272,7 @@ export function ShareView() {
             value={question}
             onChange={setQuestion}
             onSubmit={handleSubmit}
+            disabled={isSubmitting}
           />
         </section>
       </div>

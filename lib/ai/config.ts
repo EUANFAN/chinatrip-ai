@@ -13,6 +13,12 @@ export type DoubaoConfig = {
   model: string;
 };
 
+export type DeepSeekConfig = {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+};
+
 const SUPPORTED_PROVIDERS = new Set<AiProvider>(["mock", "doubao", "deepseek"]);
 
 export function getConfiguredProvider(): AiProvider {
@@ -57,6 +63,47 @@ export function getDoubaoConfig(): DoubaoConfig {
     throw new AiProviderConfigError(
       "doubao",
       "Doubao configuration is invalid.",
+    );
+  }
+
+  return {
+    apiKey,
+    baseUrl,
+    model,
+  };
+}
+
+export function getDeepSeekConfig(): DeepSeekConfig {
+  const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
+  const baseUrl = (
+    process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com"
+  ).trim();
+  const model = (
+    process.env.DEEPSEEK_MODEL ??
+    process.env.DEEPSEEK_DEFAULT_MODEL ??
+    "deepseek-chat"
+  ).trim();
+
+  const missing = [
+    ["DEEPSEEK_API_KEY", apiKey],
+    ["DEEPSEEK_BASE_URL", baseUrl],
+    ["DEEPSEEK_MODEL", model],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  if (missing.length > 0) {
+    throw new AiProviderConfigError(
+      "deepseek",
+      `Missing DeepSeek configuration: ${missing.join(", ")}.`,
+      { missing },
+    );
+  }
+
+  if (!apiKey || !baseUrl || !model) {
+    throw new AiProviderConfigError(
+      "deepseek",
+      "DeepSeek configuration is invalid.",
     );
   }
 

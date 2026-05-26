@@ -51,7 +51,7 @@ Phase 1 includes:
 - Share answer.
 - Copy answer.
 - Share page.
-- English / Chinese language switch.
+- English default answers; Chinese language switch UI is temporarily hidden for launch.
 - Responsive layout.
 - AI usage logs.
 - Docker PostgreSQL for local development.
@@ -114,12 +114,18 @@ Public share page
 
 The MVP does not ship separate pages for saved answers, pricing, or account management.
 
+Release candidate notes:
+
+- AI answers default to English. The language switch entry is intentionally hidden until the language experience is finalized.
+- Save answer remains out of scope; Copy and Share are the supported answer actions.
+- Logged-in users can create and view profile-owned chats, but anonymous chat migration after login is deferred.
+
 ## Home Page Requirements
 
 The home page must include:
 
 - Logo / product name.
-- English / Chinese language switch.
+- English UI by default. The language switch is temporarily hidden.
 - Google login entry.
 - Hero visual direction.
 - Headline.
