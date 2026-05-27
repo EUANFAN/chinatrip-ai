@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { Prisma } from "@prisma/client";
 import {
+  getAnonymousIdFromCookie,
   getOrCreateAnonymousIdCookie,
   getOrCreateAnonymousSession,
 } from "@/lib/auth/anonymous-session";
@@ -130,6 +131,48 @@ export async function getCurrentViewer() {
   return {
     profile,
     anonymousId,
+  };
+}
+
+export async function getChatHistoryOwner() {
+  const user = await getSupabaseUserFromCookie();
+
+  if (user) {
+    const profile =
+      (await prisma.profile.findUnique({
+        where: {
+          userId: user.id,
+        },
+      })) ?? (await syncProfileFromSupabaseUser(user));
+
+    return {
+      type: "profile" as const,
+      profileId: profile.id,
+    };
+  }
+
+  const anonymousId = await getAnonymousIdFromCookie();
+
+  if (!anonymousId) {
+    return null;
+  }
+
+  const anonymousSession = await prisma.anonymousSession.findUnique({
+    where: {
+      anonymousId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!anonymousSession) {
+    return null;
+  }
+
+  return {
+    type: "anonymous" as const,
+    anonymousSessionId: anonymousSession.id,
   };
 }
 

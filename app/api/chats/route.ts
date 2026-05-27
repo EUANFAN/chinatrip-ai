@@ -7,7 +7,7 @@ import {
 } from "@/lib/api/types";
 import {
   createChatOwnerData,
-  createChatOwnerWhere,
+  getChatHistoryOwner,
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
 import { prisma } from "@/lib/prisma";
@@ -56,20 +56,41 @@ export async function GET(request: Request) {
   const limit = getLimit(searchParams.get("limit"));
 
   try {
-    const identity = await getCurrentIdentity();
+    const owner = await getChatHistoryOwner();
+
+    if (!owner) {
+      const response: ChatHistoryResponse = {
+        chats: [],
+        nextCursor: null,
+      };
+
+      return NextResponse.json(response);
+    }
+
     const chats = await prisma.chat.findMany({
       where: {
         status: {
           not: "deleted",
         },
-        ...createChatOwnerWhere(identity),
+        ...(owner.type === "profile"
+          ? { profileId: owner.profileId }
+          : { anonymousSessionId: owner.anonymousSessionId }),
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        language: true,
+        status: true,
+        updatedAt: true,
+        lastMessageAt: true,
         messages: {
           where: {
             role: {
               in: ["user", "assistant"],
             },
+          },
+          select: {
+            content: true,
           },
           orderBy: [{ sequence: "desc" }, { createdAt: "desc" }],
           take: 1,
