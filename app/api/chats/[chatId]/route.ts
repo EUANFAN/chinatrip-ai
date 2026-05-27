@@ -8,6 +8,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const preferredRegion = "sin1";
 
 type RouteContext = {
   params: Promise<{

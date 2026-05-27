@@ -3,6 +3,7 @@ import { apiError } from "@/lib/api/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+export const preferredRegion = "sin1";
 
 export async function POST() {
   try {

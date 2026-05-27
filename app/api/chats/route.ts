@@ -13,6 +13,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const preferredRegion = "sin1";
 
 function isLanguage(value: unknown): value is "en" | "zh" {
   return value === "en" || value === "zh";

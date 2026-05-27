@@ -4,6 +4,7 @@ import { SharedAnswerResponse } from "@/lib/api/types";
 import { getPublicShareBySlug } from "@/lib/share/public-share";
 
 export const runtime = "nodejs";
+export const preferredRegion = "sin1";
 
 type RouteContext = {
   params: Promise<{

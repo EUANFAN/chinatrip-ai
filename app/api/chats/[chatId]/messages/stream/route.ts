@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import type { StreamTravelAnswerDone, TravelAnswerMessage } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
+export const preferredRegion = "sin1";
 
 const MAX_HISTORY_MESSAGES = 6;
 const MAX_HISTORY_CONTENT_LENGTH = 1200;

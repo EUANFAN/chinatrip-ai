@@ -1,6 +1,12 @@
-import { getOrCreateAnonymousSession } from "@/lib/auth/anonymous-session";
+import { cookies } from "next/headers";
+import { Prisma } from "@prisma/client";
+import {
+  getOrCreateAnonymousIdCookie,
+  getOrCreateAnonymousSession,
+} from "@/lib/auth/anonymous-session";
 import { prisma } from "@/lib/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { User } from "@supabase/supabase-js";
 
 function getUserName(metadata: Record<string, unknown> | undefined) {
   const name = metadata?.name ?? metadata?.full_name;
@@ -16,24 +22,36 @@ function getAvatarUrl(metadata: Record<string, unknown> | undefined) {
     : null;
 }
 
-export async function getCurrentIdentity() {
-  const anonymousSession = await getOrCreateAnonymousSession();
+async function hasSupabaseAuthCookie() {
+  const cookieStore = await cookies();
+
+  return cookieStore
+    .getAll()
+    .some(
+      (cookie) =>
+        cookie.name.startsWith("sb-") && cookie.name.includes("auth-token"),
+    );
+}
+
+async function getSupabaseUserFromCookie() {
+  if (!(await hasSupabaseAuthCookie())) {
+    return null;
+  }
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return {
-      profile: null,
-      anonymousSession,
-    };
-  }
+  return user;
+}
 
+export async function syncProfileFromSupabaseUser(user: User) {
   const metadata = user.user_metadata as Record<string, unknown> | undefined;
   const metadataName = getUserName(metadata);
   const metadataAvatarUrl = getAvatarUrl(metadata);
-  const profile = await prisma.profile.upsert({
+
+  return prisma.profile.upsert({
     where: {
       userId: user.id,
     },
@@ -49,9 +67,86 @@ export async function getCurrentIdentity() {
       ...(metadataAvatarUrl ? { avatarUrl: metadataAvatarUrl } : {}),
     },
   });
+}
+
+async function getOrCreateProfileForUser(user: User) {
+  const existingProfile = await prisma.profile.findUnique({
+    where: {
+      userId: user.id,
+    },
+  });
+
+  if (existingProfile) {
+    return existingProfile;
+  }
+
+  const metadata = user.user_metadata as Record<string, unknown> | undefined;
+  const metadataName = getUserName(metadata);
+  const metadataAvatarUrl = getAvatarUrl(metadata);
+
+  try {
+    return await prisma.profile.create({
+      data: {
+        userId: user.id,
+        email: user.email ?? null,
+        name: metadataName,
+        avatarUrl: metadataAvatarUrl,
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const racedProfile = await prisma.profile.findUnique({
+        where: {
+          userId: user.id,
+        },
+      });
+
+      if (racedProfile) {
+        return racedProfile;
+      }
+    }
+
+    throw error;
+  }
+}
+
+async function getCurrentProfile() {
+  const user = await getSupabaseUserFromCookie();
+
+  if (!user) {
+    return null;
+  }
+
+  return getOrCreateProfileForUser(user);
+}
+
+export async function getCurrentViewer() {
+  const anonymousId = await getOrCreateAnonymousIdCookie();
+  const profile = await getCurrentProfile();
 
   return {
     profile,
+    anonymousId,
+  };
+}
+
+export async function getCurrentIdentity() {
+  const profile = await getCurrentProfile();
+
+  if (profile) {
+    return {
+      profile,
+      anonymousSession: null,
+    };
+  }
+
+  const anonymousSession = await getOrCreateAnonymousSession();
+
+  return {
+    profile: null,
     anonymousSession,
   };
 }
@@ -73,6 +168,6 @@ export function createChatOwnerWhere(identity: CurrentIdentity) {
 export function createChatOwnerData(identity: CurrentIdentity) {
   return {
     profileId: identity.profile?.id ?? null,
-    anonymousSessionId: identity.anonymousSession.id,
+    anonymousSessionId: identity.anonymousSession?.id ?? null,
   };
 }

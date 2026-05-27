@@ -11,6 +11,7 @@ import {
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const preferredRegion = "sin1";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

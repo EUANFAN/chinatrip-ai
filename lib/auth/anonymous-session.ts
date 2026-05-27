@@ -4,11 +4,38 @@ import { prisma } from "@/lib/prisma";
 const ANONYMOUS_ID_COOKIE = "anonymous_id";
 const ANONYMOUS_ID_MAX_AGE = 60 * 60 * 24 * 365;
 
-export async function getOrCreateAnonymousSession() {
+function createAnonymousIdCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: ANONYMOUS_ID_MAX_AGE,
+    path: "/",
+  };
+}
+
+export async function getOrCreateAnonymousIdCookie() {
   const cookieStore = await cookies();
-  const headerStore = await headers();
   const existingAnonymousId = cookieStore.get(ANONYMOUS_ID_COOKIE)?.value;
-  const anonymousId = existingAnonymousId ?? crypto.randomUUID();
+
+  if (existingAnonymousId) {
+    return existingAnonymousId;
+  }
+
+  const anonymousId = crypto.randomUUID();
+
+  cookieStore.set(
+    ANONYMOUS_ID_COOKIE,
+    anonymousId,
+    createAnonymousIdCookieOptions(),
+  );
+
+  return anonymousId;
+}
+
+export async function getOrCreateAnonymousSession() {
+  const headerStore = await headers();
+  const anonymousId = await getOrCreateAnonymousIdCookie();
   const userAgent = headerStore.get("user-agent");
 
   const anonymousSession = await prisma.anonymousSession.upsert({
@@ -22,16 +49,6 @@ export async function getOrCreateAnonymousSession() {
       ...(userAgent ? { userAgent } : {}),
     },
   });
-
-  if (!existingAnonymousId) {
-    cookieStore.set(ANONYMOUS_ID_COOKIE, anonymousId, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: ANONYMOUS_ID_MAX_AGE,
-      path: "/",
-    });
-  }
 
   return anonymousSession;
 }
