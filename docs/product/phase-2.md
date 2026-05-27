@@ -1,0 +1,373 @@
+# ChinaTrip AI Phase 2 Product Plan
+
+## Summary
+
+Phase 2 upgrades ChinaTrip AI from a general China travel Q&A assistant into a faster, more practical, visual execution assistant for foreign travelers visiting China.
+
+Phase 2 focuses on five product areas:
+
+- Upstash Redis for faster high-frequency read APIs.
+- A refreshed home page question set based on real foreign-traveler pain points.
+- Specialized prompt profiles for the new quick questions, plus a general fallback profile for free-form user questions.
+- A static image library that can be matched to AI answers through approved asset ids.
+- A richer AI answer module that supports text, images, step cards, Chinese phrase cards, warning cards, and backup-plan cards.
+
+Phase 2 does not include:
+
+- Knowledge base.
+- Vector database.
+- RAG.
+- CMS.
+- User-uploaded images.
+- Self-hosted or generic TCP Redis.
+
+## Home Quick Questions
+
+The home page shows eight quick questions ordered by foreign-traveler execution risk. Clicking a quick question only fills the input. It does not create a chat. The user still creates a chat by clicking Ask AI or pressing Enter.
+
+If the submitted text exactly matches a quick question, the app sends the matching `promptProfile` and `sourceQuestionId`. If the user edits the text before submitting, the message is treated as a free-form question and classified by intent.
+
+| Label | Question | Subtitle | Prompt Profile |
+| --- | --- | --- | --- |
+| Payment | What should I do if I cannot pay after arriving in China? | Alipay, WeChat Pay, cards, cash backup | `payment_survival` |
+| Internet & Apps | Which apps, SIM, eSIM, and VPN setup do I need before going to China? | Apps, mobile data, blocked services | `internet_apps` |
+| Transport | How do I use airports, metro, taxis, Didi, and high-speed trains in China? | Airport, metro, taxi, Didi, rail | `transport_workflow` |
+| Tickets & Booking | Can I visit attractions directly, or do I need reservations and passport booking? | Reservations, passport, closed days | `tickets_booking` |
+| Language | What Chinese phrases or address cards should I show drivers, hotels, and shop staff? | Show-to-local Chinese phrases | `language_cards` |
+| Itinerary Planning | Can you plan my China itinerary by distance, timing, pace, and transport risk? | Routes, timing, pace, backup plan | `itinerary_planning` |
+| Food | What should I eat in China, and how do I order if I cannot read Chinese menus? | Food picks, spice level, ordering phrases | `food_ordering` |
+| Emergency | What should I do if I lose my passport, phone, payment access, or need medical help in China? | Passport, phone, hospital, emergency phrases | `emergency_help` |
+
+Home page requirements:
+
+- Desktop and mobile layouts must show all eight entries without text overflow.
+- Cards show label and subtitle.
+- The selected question appears in the existing input.
+- Chat creation behavior remains unchanged until the user submits the input.
+
+## Prompt Profiles
+
+Phase 2 keeps the current core prompt system but adds profile-specific prompt packets.
+
+Prompt composition:
+
+```text
+Core Prompt
++ Pain Point Rules
++ Intent Classifier
++ Prompt Profile
++ Output Contract
+```
+
+Prompt profile type:
+
+```ts
+type PromptProfile =
+  | "payment_survival"
+  | "internet_apps"
+  | "transport_workflow"
+  | "tickets_booking"
+  | "language_cards"
+  | "itinerary_planning"
+  | "food_ordering"
+  | "emergency_help"
+  | "general_travel";
+```
+
+Recommended prompt file layout:
+
+```text
+lib/ai/prompts/profiles/
+  payment-survival.ts
+  internet-apps.ts
+  transport-workflow.ts
+  tickets-booking.ts
+  language-cards.ts
+  itinerary-planning.ts
+  food-ordering.ts
+  emergency-help.ts
+  general-travel.ts
+```
+
+Routing rules:
+
+- Exact quick-question submission uses the quick question's `promptProfile`.
+- Edited quick-question text is treated as free-form input.
+- Free-form input is classified by intent.
+- If intent matches one of the eight pain-point profiles, use that profile.
+- If intent does not match, use `general_travel`.
+
+Profile requirements:
+
+- `payment_survival`: cover payment failure, Alipay, WeChat Pay, foreign cards, cash backup, deposits, and show-to-staff Chinese.
+- `internet_apps`: cover app setup, SIM, eSIM, roaming, VPN reminders, SMS verification, offline maps, and translation backup.
+- `transport_workflow`: cover airports, metro, taxis, Didi, high-speed rail, pickup points, Chinese addresses, and staffed-counter fallback.
+- `tickets_booking`: cover reservations, passport booking, real-name rules, closed days, capacity limits, and alternative attractions.
+- `language_cards`: produce Chinese text cards for drivers, hotels, restaurants, ticket counters, and basic help.
+- `itinerary_planning`: organize routes by distance, timing, pace, transport risk, reservation risk, and backup routes.
+- `food_ordering`: cover food suggestions, non-spicy options, scan ordering, allergies, vegetarian needs, and dietary restrictions.
+- `emergency_help`: cover passport loss, phone loss, payment loss, hospitals, police, embassy help, and safety-first action steps.
+- `general_travel`: answer random travel questions and switch into a specialized profile when the user's intent clearly matches one of the eight categories.
+
+## Upstash Redis
+
+Phase 2 uses Upstash Redis as a cache layer for Vercel serverless routes. Supabase PostgreSQL remains the source of truth.
+
+Environment variables:
+
+```env
+UPSTASH_REDIS_REST_URL=""
+UPSTASH_REDIS_REST_TOKEN=""
+```
+
+Recommended client:
+
+```text
+lib/redis.ts
+```
+
+Client rules:
+
+- If Redis environment variables are missing, Redis is disabled.
+- Redis read failures fall back to database queries.
+- Redis write failures are ignored.
+- Redis must never block the core product loop.
+
+Cache targets:
+
+| API | TTL | Key |
+| --- | --- | --- |
+| `GET /api/chats` | 30-60 seconds | `chat-history:profile:{profileId}:limit:{limit}` |
+| `GET /api/chats` | 30-60 seconds | `chat-history:anonymous:{anonymousSessionId}:limit:{limit}` |
+| `GET /api/share/:shareId` | 10 minutes | `share:{shareId}` |
+
+Invalidation rules:
+
+- New chat creation deletes the owner's chat-history cache.
+- New user message deletes the owner's chat-history cache.
+- Assistant answer completion deletes the owner's chat-history cache.
+- Share revoke or share content update deletes `share:{shareId}`.
+
+Do not cache:
+
+- AI streaming response bodies.
+- Supabase session or token data.
+- Full private chat detail.
+- Logged-in `/api/me` responses.
+
+Local development:
+
+- Preferred: connect to a separate development Upstash Redis instance.
+- Acceptable: leave Redis environment variables unset and run without cache.
+- Do not require Docker Redis for local development.
+
+## Static Image Library
+
+Phase 2 uses project-owned static images and a registry. It does not use a database-backed media library.
+
+Directory structure:
+
+```text
+public/answer-assets/
+  payment/
+  internet/
+  transport/
+  tickets/
+  language/
+  itinerary/
+  food/
+  emergency/
+  cities/
+```
+
+File naming rule:
+
+```text
+{category}-{subject}-{scenario}-{variant}.webp
+```
+
+Examples:
+
+```text
+payment-alipay-qr-counter.webp
+internet-esim-setup-phone.webp
+transport-didi-pickup-point.webp
+tickets-forbidden-city-passport-booking.webp
+language-taxi-driver-card.webp
+itinerary-beijing-day-route.webp
+food-spicy-level-menu.webp
+emergency-passport-lost-police.webp
+```
+
+Registry type:
+
+```ts
+type AnswerAsset = {
+  id: string;
+  src: string;
+  title: string;
+  alt: string;
+  category: PromptProfile | "city";
+  city?: string;
+  poi?: string;
+  tags: string[];
+  sourceType: "owned" | "licensed" | "generated";
+  credit?: string;
+};
+```
+
+Image matching rules:
+
+- `id` equals the file name without the extension.
+- AI must not return image URLs.
+- AI may return visual intent or tags.
+- Server-side code selects approved `assetId` values from the registry based on `promptProfile`, user question, tags, and answer context.
+- If no image matches, render a text-only answer.
+- Share pages store asset id snapshots so shared answers remain stable.
+
+## AI Answer UI
+
+Phase 2 upgrades AI answers from Markdown-only rendering to Markdown plus visual metadata.
+
+Visual metadata:
+
+```ts
+type AnswerVisuals = {
+  heroAssetId?: string;
+  inlineAssetIds?: string[];
+  cards?: Array<{
+    type: "phrase" | "warning" | "backup" | "checklist";
+    title: string;
+    body: string;
+  }>;
+};
+```
+
+Profile-specific visual guidance:
+
+- `payment_survival`: payment scene image and backup-payment warning card.
+- `internet_apps`: app, eSIM, and offline-backup checklist.
+- `transport_workflow`: airport, Didi, metro, and high-speed rail step cards.
+- `tickets_booking`: reservation, passport-booking, and closed-day warning cards.
+- `language_cards`: copyable Chinese phrase cards.
+- `itinerary_planning`: city or attraction images and route summary card.
+- `food_ordering`: food, menu, scan-ordering images, and dietary phrase cards.
+- `emergency_help`: emergency warning card, help phrase card, and action checklist.
+
+Rendering requirements:
+
+- Mobile: stack images above text, single-column cards, no text overflow.
+- Desktop: support hero image, inline images, side-by-side image/text layouts, and 2-4 image grids.
+- Copy action copies text only.
+- Share action preserves text and visual metadata.
+- Chat page and share page use the same answer rendering rules.
+
+## API and Data Changes
+
+`CreateChatRequest` adds:
+
+```ts
+type CreateChatRequest = {
+  message: string;
+  language?: "en" | "zh";
+  source?: "home" | "share";
+  shareId?: string;
+  promptProfile?: PromptProfile;
+  sourceQuestionId?: string;
+};
+```
+
+`messages.metadata` stores:
+
+```ts
+{
+  promptProfile?: PromptProfile;
+  sourceQuestionId?: string;
+  answerVisuals?: AnswerVisuals;
+}
+```
+
+`shared_answers` should add `metadata Json?` to snapshot:
+
+```ts
+{
+  answerVisuals?: AnswerVisuals;
+}
+```
+
+`ai_usage_logs.metadata` may include:
+
+```ts
+{
+  promptProfile?: PromptProfile;
+  cacheHit?: boolean;
+  selectedAssetIds?: string[];
+}
+```
+
+## Acceptance Criteria
+
+- Home page shows all eight new quick questions.
+- Clicking a quick question only fills the input.
+- Ask AI or Enter creates the chat.
+- Exact quick-question submissions include the correct `promptProfile` and `sourceQuestionId`.
+- Edited quick-question text is treated as free-form input.
+- Free-form input maps to one of the eight profiles or `general_travel`.
+- Each profile has at least five QA fixtures.
+- Upstash Redis caches `/api/chats` and `/api/share/:shareId`.
+- Redis failure does not break any user flow.
+- At least 40 static images exist in the registry.
+- Chat page supports visual answers.
+- Share page supports visual answer snapshots.
+
+## Test Plan
+
+Home:
+
+- Verify all eight cards on desktop and mobile.
+- Click each quick question and confirm it only fills the input.
+- Submit exact quick-question text and confirm profile metadata.
+- Edit quick-question text and confirm free-form classification.
+
+Prompt:
+
+- Add fixtures for all eight profiles and `general_travel`.
+- Confirm policy-sensitive answers ask users to verify current rules.
+- Confirm emergency answers start with safety-first steps.
+
+Redis:
+
+- Run with no Redis environment variables and confirm normal fallback.
+- Confirm cache miss reads from the database and writes Redis.
+- Confirm cache hit returns the same response shape.
+- Confirm chat creation and message completion invalidate chat-history cache.
+- Confirm Redis errors do not affect API success.
+
+Images:
+
+- Confirm every registry asset has `id`, `src`, `title`, `alt`, `category`, `tags`, and `sourceType`.
+- Confirm missing asset ids degrade gracefully.
+- Confirm image snapshots are stable on share pages.
+
+Answer UI:
+
+- Confirm Markdown rendering still works.
+- Confirm hero images, inline images, grids, phrase cards, warning cards, backup cards, and checklist cards render correctly.
+- Confirm mobile and desktop layouts do not overlap or overflow.
+- Confirm Copy copies text only and Share preserves visual metadata.
+
+Build:
+
+```bash
+pnpm lint
+pnpm exec tsc --noEmit
+pnpm exec prisma validate
+pnpm build
+```
+
+## Assumptions
+
+- Phase 2 keeps English UI and English answers as the default experience.
+- Upstash Redis is the only Redis target for Phase 2.
+- Images are static project assets.
+- No knowledge base, vector database, RAG, CMS, user-uploaded images, or self-hosted Redis are included in Phase 2.

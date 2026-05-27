@@ -9,6 +9,7 @@ import {
 import { AiProviderError, streamTravelAnswer } from "@/lib/ai";
 import { TRAVEL_ANSWER_PROMPT_VERSION } from "@/lib/ai/prompts/travel-answer";
 import { prisma } from "@/lib/prisma";
+import { invalidateChatHistoryCacheForRecord } from "@/lib/redis";
 import type { StreamTravelAnswerDone, TravelAnswerMessage } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
@@ -476,6 +477,7 @@ export async function POST(request: Request, context: RouteContext) {
               totalLatencyMs,
             },
           });
+          await invalidateChatHistoryCacheForRecord(prepared.chat);
 
           writeEvent(controller, {
             type: "done",
@@ -574,6 +576,7 @@ export async function POST(request: Request, context: RouteContext) {
             },
           }),
         ]);
+        await invalidateChatHistoryCacheForRecord(prepared.chat);
 
         const usage: SendMessageResponse["usage"] = {
           provider: finalResult.result.provider,
@@ -633,6 +636,7 @@ export async function POST(request: Request, context: RouteContext) {
             },
           }),
         ]);
+        await invalidateChatHistoryCacheForRecord(prepared.chat);
 
         writeEvent(controller, {
           type: "error",

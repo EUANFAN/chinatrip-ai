@@ -11,6 +11,13 @@ import {
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
 import { prisma } from "@/lib/prisma";
+import {
+  CHAT_HISTORY_CACHE_TTL_SECONDS,
+  createChatHistoryCacheKey,
+  invalidateChatHistoryCacheForRecord,
+  safeGetJson,
+  safeSetJson,
+} from "@/lib/redis";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -67,6 +74,13 @@ export async function GET(request: Request) {
       return NextResponse.json(response);
     }
 
+    const cacheKey = createChatHistoryCacheKey(owner, limit);
+    const cachedResponse = await safeGetJson<ChatHistoryResponse>(cacheKey);
+
+    if (cachedResponse) {
+      return NextResponse.json(cachedResponse);
+    }
+
     const chats = await prisma.chat.findMany({
       where: {
         status: {
@@ -114,6 +128,8 @@ export async function GET(request: Request) {
       })),
       nextCursor: null,
     };
+
+    await safeSetJson(cacheKey, response, CHAT_HISTORY_CACHE_TTL_SECONDS);
 
     return NextResponse.json(response);
   } catch (error) {
@@ -178,6 +194,8 @@ export async function POST(request: Request) {
         firstMessage: createdMessage,
       };
     });
+
+    await invalidateChatHistoryCacheForRecord(chat);
 
     const response: CreateChatResponse = {
       chat: {

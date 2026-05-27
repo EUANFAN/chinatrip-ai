@@ -117,6 +117,7 @@ http://localhost:3000
 Product:
 
 - [MVP Scope](docs/product/mvp.md)
+- [Phase 2 Product Plan](docs/product/phase-2.md)
 - [Copywriting](docs/product/copywriting.md)
 - [User Flows](docs/product/user-flows.md)
 

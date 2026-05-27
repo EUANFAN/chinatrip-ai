@@ -9,6 +9,7 @@ import {
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
 import { prisma } from "@/lib/prisma";
+import { invalidateChatHistoryCacheForRecord } from "@/lib/redis";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -117,6 +118,8 @@ export async function POST(request: Request, context: RouteContext) {
         firstMessage: createdMessage,
       };
     });
+
+    await invalidateChatHistoryCacheForRecord(chat);
 
     const response: CreateChatFromShareResponse = {
       chat: {

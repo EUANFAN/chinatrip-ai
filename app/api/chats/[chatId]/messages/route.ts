@@ -9,6 +9,7 @@ import {
 import { generateTravelAnswer, AiProviderError } from "@/lib/ai";
 import { TRAVEL_ANSWER_PROMPT_VERSION } from "@/lib/ai/prompts/travel-answer";
 import { prisma } from "@/lib/prisma";
+import { invalidateChatHistoryCacheForRecord } from "@/lib/redis";
 import type { TravelAnswerMessage } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
@@ -357,6 +358,7 @@ export async function POST(request: Request, context: RouteContext) {
             },
           }),
         ]);
+        await invalidateChatHistoryCacheForRecord(prepared.chat);
 
         const response: SendMessageResponse = {
           userMessage: serializeUserMessage(prepared.userMessage),
@@ -424,6 +426,7 @@ export async function POST(request: Request, context: RouteContext) {
           },
         }),
       ]);
+      await invalidateChatHistoryCacheForRecord(prepared.chat);
 
       const response: SendMessageResponse = {
         userMessage: serializeUserMessage(prepared.userMessage),
@@ -483,6 +486,7 @@ export async function POST(request: Request, context: RouteContext) {
           },
         }),
       ]);
+      await invalidateChatHistoryCacheForRecord(prepared.chat);
 
       const response: SendMessageResponse = {
         userMessage: serializeUserMessage(prepared.userMessage),

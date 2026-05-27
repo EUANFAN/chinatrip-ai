@@ -9,6 +9,7 @@ import {
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
 import { prisma } from "@/lib/prisma";
+import { createShareCacheKey, safeDelete } from "@/lib/redis";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -158,6 +159,8 @@ export async function POST(request: Request) {
         createdAt: share.createdAt.toISOString(),
       },
     };
+
+    await safeDelete(createShareCacheKey(share.shareSlug));
 
     return NextResponse.json(response);
   } catch (error) {
