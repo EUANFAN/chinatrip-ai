@@ -21,6 +21,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   AlertTriangle,
+  ArrowRight,
   Check,
   CirclePlus,
   Copy,
@@ -60,6 +61,8 @@ const FORCE_BOTTOM_SECOND_PASS_DELAY_MS = 100;
 const AI_QUOTA_EXHAUSTED_CODE = "AI_QUOTA_EXHAUSTED";
 const AI_QUOTA_EXHAUSTED_MESSAGE =
   "Today's AI usage has been used up. Please come back tomorrow.";
+const CONTINUE_TRUNCATED_ANSWER_PROMPT =
+  "Continue the previous answer from where it stopped.";
 
 const USER_MESSAGE_SURFACE_CLASS =
   "border border-white bg-[linear-gradient(135deg,#8A552B,#14243A)] shadow-[0_30px_68px_rgba(2,8,23,0.5),0_8px_18px_rgba(2,8,23,0.24),0_0_0_1px_rgba(255,255,255,0.22),0_0_40px_rgba(255,248,239,0.28),0_1px_0_rgba(255,255,255,0.62)_inset,0_-10px_22px_rgba(2,8,23,0.16)_inset] backdrop-blur-[3px] backdrop-saturate-125";
@@ -93,6 +96,11 @@ function toChatMessage(message: ChatDetailMessage): ChatMessage {
         ? "failed"
         : "complete",
     errorCode: message.errorCode,
+    visuals: message.visuals,
+    quickQuestionMenu: message.quickQuestionMenu,
+    truncated: message.truncated,
+    maybeTruncated: message.maybeTruncated,
+    finishReason: message.finishReason,
   };
 }
 
@@ -121,6 +129,11 @@ function toAssistantChatMessage(
     createdAt: message.createdAt,
     status: message.status,
     errorCode: message.errorCode,
+    visuals: message.visuals,
+    quickQuestionMenu: message.quickQuestionMenu,
+    truncated: message.truncated,
+    maybeTruncated: message.maybeTruncated,
+    finishReason: message.finishReason,
   };
 }
 
@@ -459,11 +472,13 @@ function MessageActionButton({
   label,
   tone,
   onClick,
+  disabled = false,
 }: {
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
   label: string;
   tone: MessageActionTone;
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+  disabled?: boolean;
 }) {
   const toneClasses = actionToneClasses[tone];
 
@@ -471,7 +486,8 @@ function MessageActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="group inline-flex h-9 items-center gap-2 rounded-xl border border-white/80 bg-transparent px-2.5 pr-3 text-sm font-semibold text-[#5E5148] shadow-[0_8px_18px_rgba(20,36,58,0.08),0_1px_0_rgba(255,255,255,0.9)_inset] ring-1 ring-[#E6D8C7]/60 transition duration-200 hover:-translate-y-0.5 hover:border-[#D49A52]/45 hover:bg-white/35 hover:text-[#14243A] hover:shadow-[0_14px_28px_rgba(20,36,58,0.13),0_1px_0_rgba(255,255,255,0.95)_inset] focus-visible:ring-2 focus-visible:ring-[#D49A52]/45 active:translate-y-0"
+      disabled={disabled}
+      className="group inline-flex h-9 items-center gap-2 rounded-xl border border-white/80 bg-transparent px-2.5 pr-3 text-sm font-semibold text-[#5E5148] shadow-[0_8px_18px_rgba(20,36,58,0.08),0_1px_0_rgba(255,255,255,0.9)_inset] ring-1 ring-[#E6D8C7]/60 transition duration-200 hover:-translate-y-0.5 hover:border-[#D49A52]/45 hover:bg-white/35 hover:text-[#14243A] hover:shadow-[0_14px_28px_rgba(20,36,58,0.13),0_1px_0_rgba(255,255,255,0.95)_inset] focus-visible:ring-2 focus-visible:ring-[#D49A52]/45 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:border-white/80 disabled:hover:bg-transparent"
     >
       <span
         className={`inline-flex h-6 w-6 items-center justify-center rounded-full shadow-[0_4px_10px_rgba(20,36,58,0.08)] transition duration-200 group-hover:scale-105 ${toneClasses.iconWrap}`}
@@ -483,20 +499,87 @@ function MessageActionButton({
   );
 }
 
+function QuickQuestionMenuPanel({
+  menu,
+  onSelect,
+}: {
+  menu: NonNullable<ChatMessage["quickQuestionMenu"]>;
+  onSelect: (
+    subQuestion: NonNullable<ChatMessage["quickQuestionMenu"]>["subQuestions"][number],
+    menu: NonNullable<ChatMessage["quickQuestionMenu"]>,
+  ) => void;
+}) {
+  return (
+    <div className="mt-5 space-y-3 rounded-2xl border border-[#E6D8C7]/80 bg-[#FFF8EF]/72 p-3 shadow-[0_14px_34px_rgba(20,36,58,0.06),0_1px_0_rgba(255,255,255,0.86)_inset] sm:p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#8A552B]">
+          Pick a specific question
+        </p>
+        <span className="shrink-0 rounded-full border border-[#E6D8C7] bg-white/70 px-2.5 py-1 text-xs font-bold text-[#74685C]">
+          {menu.subQuestions.length}
+        </span>
+      </div>
+      <div className="grid gap-2">
+        {menu.subQuestions.map((subQuestion) => (
+          <button
+            key={subQuestion.id}
+            type="button"
+            onClick={() => onSelect(subQuestion, menu)}
+            className="group flex w-full items-center justify-between gap-3 rounded-xl border border-white/85 bg-white/78 px-3.5 py-3 text-left text-sm font-semibold leading-5 text-[#26384D] shadow-[0_8px_18px_rgba(20,36,58,0.06),0_1px_0_rgba(255,255,255,0.9)_inset] ring-1 ring-[#E6D8C7]/50 transition hover:-translate-y-0.5 hover:border-[#D49A52]/55 hover:bg-white hover:text-[#14243A] hover:shadow-[0_14px_28px_rgba(20,36,58,0.11)] focus-visible:ring-2 focus-visible:ring-[#D49A52]/45"
+          >
+            <span className="min-w-0">
+              <span className="block text-xs font-extrabold uppercase tracking-[0.08em] text-[#8A552B]">
+                {subQuestion.label}
+              </span>
+              <span className="mt-0.5 block break-words [overflow-wrap:anywhere]">
+                {subQuestion.question}
+              </span>
+            </span>
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#14243A] text-[#FFF8EF] shadow-[0_8px_18px_rgba(20,36,58,0.12)] transition group-hover:scale-105">
+              <ArrowRight className="h-4 w-4" />
+            </span>
+          </button>
+        ))}
+      </div>
+      <p className="border-t border-[#E6D8C7]/70 pt-3 text-xs font-semibold leading-5 text-[#74685C]">
+        If your question is different, type it below and I&apos;ll answer it
+        directly.
+      </p>
+    </div>
+  );
+}
+
 function AssistantMessageBubble({
   status,
   content,
+  visuals,
+  quickQuestionMenu,
+  truncated,
+  maybeTruncated,
   errorCode,
   progress,
   onCopy,
   onShare,
+  onContinueAnswer,
+  onQuickSubQuestion,
+  isSharing,
 }: {
   status?: ChatMessage["status"];
   content: string;
+  visuals?: ChatMessage["visuals"];
+  quickQuestionMenu?: ChatMessage["quickQuestionMenu"];
+  truncated?: boolean;
+  maybeTruncated?: boolean;
   errorCode?: string | null;
   progress?: number;
   onCopy: (content: string, event: MouseEvent<HTMLButtonElement>) => void;
   onShare: (event: MouseEvent<HTMLButtonElement>) => void;
+  onContinueAnswer: () => void;
+  onQuickSubQuestion: (
+    subQuestion: NonNullable<ChatMessage["quickQuestionMenu"]>["subQuestions"][number],
+    menu: NonNullable<ChatMessage["quickQuestionMenu"]>,
+  ) => void;
+  isSharing: boolean;
 }) {
   const isLoading = status === "loading";
   const isFailed = status === "failed";
@@ -505,6 +588,10 @@ function AssistantMessageBubble({
     content === AI_QUOTA_EXHAUSTED_MESSAGE;
   const isStreaming = isLoading && content.trim().length > 0;
   const progressValue = Math.max(1, Math.min(100, Math.round(progress ?? 1)));
+  const shouldShowContinue = truncated || maybeTruncated;
+  const continuePromptText = truncated
+    ? "This answer hit the output limit. Continue to get the rest."
+    : "This answer may not be complete. Continue if you want more.";
 
   function renderProgress(label: string) {
     return (
@@ -543,7 +630,7 @@ function AssistantMessageBubble({
         <div className="relative z-10">
           {isStreaming ? (
             <div className="space-y-5">
-              <AnswerContent content={content} showCursor />
+              <AnswerContent content={content} visuals={visuals} showCursor />
               <div className="inline-flex items-center gap-2 rounded-full border border-[#E6D8C7]/70 bg-[#FFF8EF]/76 px-3 py-1.5 text-xs font-semibold text-[#8A552B] shadow-[0_8px_18px_rgba(20,36,58,0.06)]">
                 <span className="flex items-center gap-1">
                   <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#D49A52] [animation-delay:-0.2s]" />
@@ -618,21 +705,48 @@ function AssistantMessageBubble({
             )
           ) : (
             <>
-              <AnswerContent content={content} />
-              <div className="mt-6 flex flex-wrap gap-2 border-t border-[#E6D8C7]/70 pt-4">
-                <MessageActionButton
-                  Icon={Share2}
-                  label="Share"
-                  tone="share"
-                  onClick={onShare}
+              <AnswerContent content={content} visuals={visuals} />
+              {quickQuestionMenu ? (
+                <QuickQuestionMenuPanel
+                  menu={quickQuestionMenu}
+                  onSelect={onQuickSubQuestion}
                 />
-                <MessageActionButton
-                  Icon={Copy}
-                  label="Copy"
-                  tone="copy"
-                  onClick={(event) => onCopy(content, event)}
-                />
-              </div>
+              ) : shouldShowContinue ? (
+                <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-[#FFF8EF] p-4 text-[#523719] shadow-[0_14px_34px_rgba(146,64,14,0.08),0_1px_0_rgba(255,255,255,0.82)_inset] sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-100 text-red-700 shadow-[0_8px_18px_rgba(185,28,28,0.14)]">
+                      <AlertTriangle className="h-4.5 w-4.5" />
+                    </span>
+                    <p className="min-w-0 break-words text-sm font-semibold leading-6 [overflow-wrap:anywhere]">
+                      {continuePromptText}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onContinueAnswer}
+                    className="inline-flex h-11 shrink-0 animate-pulse items-center justify-center rounded-xl bg-[linear-gradient(135deg,#8A552B,#14243A)] px-4 text-sm font-semibold text-[#FFF8EF] shadow-[0_10px_22px_rgba(20,36,58,0.10),0_0_0_1px_rgba(255,255,255,0.14)_inset] transition hover:animate-none hover:brightness-105 focus-visible:ring-2 focus-visible:ring-[#D49A52]/45 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Continue answer
+                  </button>
+                </div>
+              ) : null}
+              {quickQuestionMenu ? null : (
+                <div className="mt-6 flex flex-wrap gap-2 border-t border-[#E6D8C7]/70 pt-4">
+                  <MessageActionButton
+                    Icon={Share2}
+                    label={isSharing ? "Sharing..." : "Share"}
+                    tone="share"
+                    onClick={onShare}
+                    disabled={isSharing}
+                  />
+                  <MessageActionButton
+                    Icon={Copy}
+                    label="Copy"
+                    tone="copy"
+                    onClick={(event) => onCopy(content, event)}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>
@@ -646,6 +760,9 @@ function MessageItem({
   user,
   onCopy,
   onShare,
+  onContinueAnswer,
+  onQuickSubQuestion,
+  sharingMessageId,
 }: {
   message: ChatMessage;
   user: MeResponse["user"];
@@ -654,6 +771,12 @@ function MessageItem({
     message: ChatMessage,
     event: MouseEvent<HTMLButtonElement>,
   ) => void;
+  onContinueAnswer: () => void;
+  onQuickSubQuestion: (
+    subQuestion: NonNullable<ChatMessage["quickQuestionMenu"]>["subQuestions"][number],
+    menu: NonNullable<ChatMessage["quickQuestionMenu"]>,
+  ) => void;
+  sharingMessageId: string | null;
 }) {
   if (message.role === "user") {
     return <UserMessageBubble content={message.content} user={user} />;
@@ -663,10 +786,17 @@ function MessageItem({
     <AssistantMessageBubble
       status={message.status}
       content={message.content}
+      visuals={message.visuals}
+      quickQuestionMenu={message.quickQuestionMenu}
+      truncated={message.truncated}
+      maybeTruncated={message.maybeTruncated}
       errorCode={message.errorCode}
       progress={message.progress}
       onCopy={onCopy}
       onShare={(event) => onShare(message, event)}
+      onContinueAnswer={onContinueAnswer}
+      onQuickSubQuestion={onQuickSubQuestion}
+      isSharing={sharingMessageId === message.id}
     />
   );
 }
@@ -767,6 +897,7 @@ export function ChatView({ chatId }: { chatId: string }) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [message, setMessage] = useState("");
+  const [sharingMessageId, setSharingMessageId] = useState<string | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
   const [activeChatId, setActiveChatId] = useState(chatId);
@@ -1579,8 +1710,14 @@ export function ChatView({ chatId }: { chatId: string }) {
     toastTimeoutRef.current = setTimeout(() => setToast(null), 1800);
   }
 
-  function handleSubmit() {
-    const trimmedMessage = message.trim();
+  function submitMessage(
+    value: string,
+    metadata?: Pick<
+      SendMessageRequest,
+      "promptProfile" | "sourceQuestionId" | "sourceSubQuestionId"
+    >,
+  ) {
+    const trimmedMessage = value.trim();
 
     if (!trimmedMessage || isGenerating || !chat) {
       return;
@@ -1605,15 +1742,37 @@ export function ChatView({ chatId }: { chatId: string }) {
           : currentChat.title,
       messages: [...currentChat.messages, userMessage, loadingMessage],
     }));
-    setMessage("");
+    setMessage((currentMessage) =>
+      currentMessage.trim() === trimmedMessage ? "" : currentMessage,
+    );
     forceScrollToBottomAfterMessageInsert();
     void sendMessageToApi({
       targetChatId: chat.id,
       requestBody: {
         message: trimmedMessage,
+        ...metadata,
       },
       loadingMessageId,
       optimisticUserMessageId: userMessage.id,
+    });
+  }
+
+  function handleSubmit() {
+    submitMessage(message);
+  }
+
+  function handleContinueTruncatedAnswer() {
+    submitMessage(CONTINUE_TRUNCATED_ANSWER_PROMPT);
+  }
+
+  function handleQuickSubQuestion(
+    subQuestion: NonNullable<ChatMessage["quickQuestionMenu"]>["subQuestions"][number],
+    menu: NonNullable<ChatMessage["quickQuestionMenu"]>,
+  ) {
+    submitMessage(subQuestion.question, {
+      promptProfile: subQuestion.promptProfile,
+      sourceQuestionId: menu.sourceQuestionId,
+      sourceSubQuestionId: subQuestion.id,
     });
   }
 
@@ -1643,6 +1802,10 @@ export function ChatView({ chatId }: { chatId: string }) {
   ) {
     const target = event.currentTarget;
 
+    if (sharingMessageId) {
+      return;
+    }
+
     if (!chat || assistantMessage.status !== "complete") {
       showToast("Only complete answers can be shared.", target);
       return;
@@ -1657,6 +1820,8 @@ export function ChatView({ chatId }: { chatId: string }) {
       showToast("Question-answer pair not found.", target);
       return;
     }
+
+    setSharingMessageId(assistantMessage.id);
 
     try {
       const response = await apiFetch<CreateSharedAnswerResponse>(
@@ -1675,6 +1840,10 @@ export function ChatView({ chatId }: { chatId: string }) {
           ? error.message
           : "Failed to create share link.",
         target,
+      );
+    } finally {
+      setSharingMessageId((currentId) =>
+        currentId === assistantMessage.id ? null : currentId,
       );
     }
   }
@@ -1842,6 +2011,9 @@ export function ChatView({ chatId }: { chatId: string }) {
                         user={user}
                         onCopy={handleCopy}
                         onShare={handleShare}
+                        onContinueAnswer={handleContinueTruncatedAnswer}
+                        onQuickSubQuestion={handleQuickSubQuestion}
+                        sharingMessageId={sharingMessageId}
                       />
                     </div>
                   );

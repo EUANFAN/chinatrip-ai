@@ -21,9 +21,9 @@ Phase 2 does not include:
 - User-uploaded images.
 - Self-hosted or generic TCP Redis.
 
-## Home Quick Questions
+## Home Classic Questions
 
-The home page shows eight quick questions ordered by foreign-traveler execution risk. Clicking a quick question only fills the input. It does not create a chat. The user still creates a chat by clicking Ask AI or pressing Enter.
+The home page keeps six classic question entries. Clicking a classic question only fills the input. It does not create a chat. The user still creates a chat by clicking Ask AI or pressing Enter.
 
 If the submitted text exactly matches a quick question, the app sends the matching `promptProfile` and `sourceQuestionId`. If the user edits the text before submitting, the message is treated as a free-form question and classified by intent.
 
@@ -34,16 +34,15 @@ If the submitted text exactly matches a quick question, the app sends the matchi
 | Transport | How do I use airports, metro, taxis, Didi, and high-speed trains in China? | Airport, metro, taxi, Didi, rail | `transport_workflow` |
 | Tickets & Booking | Can I visit attractions directly, or do I need reservations and passport booking? | Reservations, passport, closed days | `tickets_booking` |
 | Language | What Chinese phrases or address cards should I show drivers, hotels, and shop staff? | Show-to-local Chinese phrases | `language_cards` |
-| Itinerary Planning | Can you plan my China itinerary by distance, timing, pace, and transport risk? | Routes, timing, pace, backup plan | `itinerary_planning` |
-| Food | What should I eat in China, and how do I order if I cannot read Chinese menus? | Food picks, spice level, ordering phrases | `food_ordering` |
 | Emergency | What should I do if I lose my passport, phone, payment access, or need medical help in China? | Passport, phone, hospital, emergency phrases | `emergency_help` |
 
 Home page requirements:
 
-- Desktop and mobile layouts must show all eight entries without text overflow.
+- Desktop and mobile layouts must show all six entries without text overflow.
 - Cards show label and subtitle.
 - The selected question appears in the existing input.
 - Chat creation behavior remains unchanged until the user submits the input.
+- Itinerary and food remain supported for free-form questions, but they are not home page entries in this phase.
 
 ## Prompt Profiles
 
@@ -94,7 +93,7 @@ Routing rules:
 - Exact quick-question submission uses the quick question's `promptProfile`.
 - Edited quick-question text is treated as free-form input.
 - Free-form input is classified by intent.
-- If intent matches one of the eight pain-point profiles, use that profile.
+- If intent matches one of the supported pain-point profiles, use that profile.
 - If intent does not match, use `general_travel`.
 
 Profile requirements:
@@ -107,7 +106,7 @@ Profile requirements:
 - `itinerary_planning`: organize routes by distance, timing, pace, transport risk, reservation risk, and backup routes.
 - `food_ordering`: cover food suggestions, non-spicy options, scan ordering, allergies, vegetarian needs, and dietary restrictions.
 - `emergency_help`: cover passport loss, phone loss, payment loss, hospitals, police, embassy help, and safety-first action steps.
-- `general_travel`: answer random travel questions and switch into a specialized profile when the user's intent clearly matches one of the eight categories.
+- `general_travel`: answer random travel questions and switch into a specialized profile when the user's intent clearly matches one of the supported categories.
 
 ## Upstash Redis
 
@@ -174,8 +173,6 @@ public/answer-assets/
   transport/
   tickets/
   language/
-  itinerary/
-  food/
   emergency/
   cities/
 ```
@@ -194,9 +191,8 @@ internet-esim-setup-phone.webp
 transport-didi-pickup-point.webp
 tickets-forbidden-city-passport-booking.webp
 language-taxi-driver-card.webp
-itinerary-beijing-day-route.webp
-food-spicy-level-menu.webp
 emergency-passport-lost-police.webp
+city-beijing-day-route.webp
 ```
 
 Registry type:
@@ -223,7 +219,7 @@ Image matching rules:
 - AI may return visual intent or tags.
 - Server-side code selects approved `assetId` values from the registry based on `promptProfile`, user question, tags, and answer context.
 - If no image matches, render a text-only answer.
-- Share pages store asset id snapshots so shared answers remain stable.
+- Share pages render approved visual metadata when available. In the first implementation, shared answers may reselect visuals from the stored question and answer because `shared_answers` does not add a metadata column.
 
 ## AI Answer UI
 
@@ -250,8 +246,8 @@ Profile-specific visual guidance:
 - `transport_workflow`: airport, Didi, metro, and high-speed rail step cards.
 - `tickets_booking`: reservation, passport-booking, and closed-day warning cards.
 - `language_cards`: copyable Chinese phrase cards.
-- `itinerary_planning`: city or attraction images and route summary card.
-- `food_ordering`: food, menu, scan-ordering images, and dietary phrase cards.
+- `itinerary_planning`: city or attraction images from `cities/` and route summary card.
+- `food_ordering`: text and dietary phrase cards first; food images are deferred.
 - `emergency_help`: emergency warning card, help phrase card, and action checklist.
 
 Rendering requirements:
@@ -283,17 +279,11 @@ type CreateChatRequest = {
 {
   promptProfile?: PromptProfile;
   sourceQuestionId?: string;
-  answerVisuals?: AnswerVisuals;
+  visuals?: AnswerVisuals;
 }
 ```
 
-`shared_answers` should add `metadata Json?` to snapshot:
-
-```ts
-{
-  answerVisuals?: AnswerVisuals;
-}
-```
+Phase 2 first implementation does not require a `shared_answers` migration. Share pages can reselect visuals from the stored question and answer.
 
 `ai_usage_logs.metadata` may include:
 
@@ -307,31 +297,30 @@ type CreateChatRequest = {
 
 ## Acceptance Criteria
 
-- Home page shows all eight new quick questions.
+- Home page shows six classic questions.
 - Clicking a quick question only fills the input.
 - Ask AI or Enter creates the chat.
 - Exact quick-question submissions include the correct `promptProfile` and `sourceQuestionId`.
 - Edited quick-question text is treated as free-form input.
-- Free-form input maps to one of the eight profiles or `general_travel`.
-- Each profile has at least five QA fixtures.
+- Free-form input maps to a supported profile or `general_travel`.
 - Upstash Redis caches `/api/chats` and `/api/share/:shareId`.
 - Redis failure does not break any user flow.
-- At least 40 static images exist in the registry.
+- Static image registry and allowed directories exist, while missing assets degrade gracefully.
 - Chat page supports visual answers.
-- Share page supports visual answer snapshots.
+- Share page supports visual answer rendering.
 
 ## Test Plan
 
 Home:
 
-- Verify all eight cards on desktop and mobile.
+- Verify all six cards on desktop and mobile.
 - Click each quick question and confirm it only fills the input.
 - Submit exact quick-question text and confirm profile metadata.
 - Edit quick-question text and confirm free-form classification.
 
 Prompt:
 
-- Add fixtures for all eight profiles and `general_travel`.
+- Verify all six home profiles plus itinerary, food, and `general_travel`.
 - Confirm policy-sensitive answers ask users to verify current rules.
 - Confirm emergency answers start with safety-first steps.
 

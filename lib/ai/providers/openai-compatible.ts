@@ -25,6 +25,7 @@ type OpenAiCompatibleResponse = {
     message?: {
       content?: string;
     };
+    finish_reason?: string | null;
   }>;
   usage?: {
     prompt_tokens?: number;
@@ -39,6 +40,7 @@ type OpenAiCompatibleChunk = {
     delta?: {
       content?: string;
     };
+    finish_reason?: string | null;
   }>;
   usage?: {
     prompt_tokens?: number;
@@ -191,6 +193,7 @@ export function createOpenAiCompatibleProvider({
       }
 
       const content = payload.choices?.[0]?.message?.content?.trim();
+      const finishReason = payload.choices?.[0]?.finish_reason ?? null;
 
       if (!content) {
         throw new AiProviderError(
@@ -212,6 +215,8 @@ export function createOpenAiCompatibleProvider({
         fallbackUsed: false,
         metadata: {
           id: payload.id,
+          finishReason,
+          truncated: finishReason === "length",
         },
       };
     },
@@ -270,6 +275,7 @@ export function createOpenAiCompatibleProvider({
       let responseId: string | undefined;
       let inputTokens: number | null = null;
       let outputTokens: number | null = null;
+      let finishReason: string | null = null;
 
       try {
         while (true) {
@@ -317,6 +323,8 @@ export function createOpenAiCompatibleProvider({
             model = payload.model ?? model;
             inputTokens = payload.usage?.prompt_tokens ?? inputTokens;
             outputTokens = payload.usage?.completion_tokens ?? outputTokens;
+            finishReason =
+              payload.choices?.[0]?.finish_reason ?? finishReason;
 
             const delta = payload.choices?.[0]?.delta?.content;
 
@@ -355,6 +363,8 @@ export function createOpenAiCompatibleProvider({
           fallbackUsed: false,
           metadata: {
             id: responseId,
+            finishReason,
+            truncated: finishReason === "length",
           },
         },
       };

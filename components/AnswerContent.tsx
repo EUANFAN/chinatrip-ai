@@ -1,3 +1,7 @@
+import Image from "next/image";
+import type { AnswerVisuals } from "@/lib/api/types";
+import { getAnswerAsset } from "@/lib/answer-assets/registry";
+
 type AnswerSection = {
   title: string | null;
   blocks: AnswerBlock[];
@@ -457,6 +461,73 @@ function NumberedItemContent({
   );
 }
 
+function AnswerAssetImage({
+  assetId,
+  priority = false,
+}: {
+  assetId: string;
+  priority?: boolean;
+}) {
+  const asset = getAnswerAsset(assetId);
+
+  if (!asset) {
+    return null;
+  }
+
+  return (
+    <figure className="overflow-hidden rounded-[1rem] border border-[#E6D8C7] bg-[#FFFDF9] shadow-[0_14px_32px_rgba(20,36,58,0.08)]">
+      <div className="relative aspect-[16/9] w-full">
+        <Image
+          src={asset.src}
+          alt={asset.alt}
+          fill
+          sizes="(min-width: 768px) 44rem, 100vw"
+          priority={priority}
+          className="object-cover"
+        />
+      </div>
+      <figcaption className="border-t border-[#E6D8C7]/70 px-3 py-2 text-xs font-medium leading-5 text-[#756A60]">
+        {asset.title}
+      </figcaption>
+    </figure>
+  );
+}
+
+function VisualCards({ cards }: { cards: NonNullable<AnswerVisuals["cards"]> }) {
+  const toneByType: Record<
+    NonNullable<AnswerVisuals["cards"]>[number]["type"],
+    string
+  > = {
+    phrase: "border-emerald-100 bg-emerald-50 text-emerald-950",
+    warning: "border-amber-100 bg-amber-50 text-amber-950",
+    backup: "border-sky-100 bg-sky-50 text-sky-950",
+    checklist: "border-indigo-100 bg-indigo-50 text-indigo-950",
+  };
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {cards.map((card, index) => (
+        <div
+          key={`${card.type}-${card.title}-${index}`}
+          className={`rounded-[1rem] border p-4 shadow-[0_10px_24px_rgba(20,36,58,0.05)] ${
+            toneByType[card.type]
+          }`}
+        >
+          <p className="text-[0.72rem] font-extrabold uppercase tracking-[0.12em] opacity-75">
+            {card.type}
+          </p>
+          <h4 className="mt-1 break-words text-sm font-extrabold leading-6 [overflow-wrap:anywhere]">
+            {card.title}
+          </h4>
+          <p className="mt-2 break-words text-sm font-medium leading-6 [overflow-wrap:anywhere]">
+            {card.body}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function NumberedBadge({
   index,
   tone,
@@ -747,19 +818,36 @@ function AnswerBlockView({
 
 export function AnswerContent({
   content,
+  visuals,
   showCursor = false,
 }: {
   content: string;
+  visuals?: AnswerVisuals;
   showCursor?: boolean;
 }) {
   const sections = parseAnswerContent(content);
+  const inlineAssetIds = visuals?.inlineAssetIds?.filter(Boolean) ?? [];
 
-  if (sections.length === 0) {
+  if (sections.length === 0 && !visuals) {
     return null;
   }
 
   return (
     <div className="space-y-7 text-[#26384D]">
+      {visuals?.heroAssetId ? (
+        <AnswerAssetImage assetId={visuals.heroAssetId} priority />
+      ) : null}
+
+      {visuals?.cards?.length ? <VisualCards cards={visuals.cards} /> : null}
+
+      {inlineAssetIds.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {inlineAssetIds.map((assetId) => (
+            <AnswerAssetImage key={assetId} assetId={assetId} />
+          ))}
+        </div>
+      ) : null}
+
       {sections.map((section, sectionIndex) => {
         const sectionKey = getSectionKey(section.title);
         const tone = SECTION_TONES[sectionKey] ?? SECTION_TONES.general;

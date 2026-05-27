@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api/server";
 import { SharedAnswerResponse } from "@/lib/api/types";
-import {
-  SHARE_CACHE_TTL_SECONDS,
-  createShareCacheKey,
-  safeGetJson,
-  safeSetJson,
-} from "@/lib/redis";
-import { getPublicShareBySlug } from "@/lib/share/public-share";
+import { getCachedPublicShareBySlug } from "@/lib/share/cached-public-share";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -22,14 +16,7 @@ export async function GET(_request: Request, context: RouteContext) {
   const { shareId } = await context.params;
 
   try {
-    const cacheKey = createShareCacheKey(shareId);
-    const cachedResponse = await safeGetJson<SharedAnswerResponse>(cacheKey);
-
-    if (cachedResponse) {
-      return NextResponse.json(cachedResponse);
-    }
-
-    const share = await getPublicShareBySlug(shareId, {
+    const share = await getCachedPublicShareBySlug(shareId, {
       incrementViewCount: true,
     });
 
@@ -40,8 +27,6 @@ export async function GET(_request: Request, context: RouteContext) {
     const response: SharedAnswerResponse = {
       share,
     };
-
-    await safeSetJson(cacheKey, response, SHARE_CACHE_TTL_SECONDS);
 
     return NextResponse.json(response);
   } catch (error) {

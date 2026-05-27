@@ -1,3 +1,7 @@
+import type { AnswerVisuals } from "@/lib/api/types";
+import type { PromptProfile } from "@/lib/quick-questions/profiles";
+import type { QuickSubQuestion } from "@/lib/quick-questions/menus";
+
 export const LAST_QUESTION_KEY = "chinatrip:lastQuestion";
 
 export type ChatMessage = {
@@ -7,6 +11,15 @@ export type ChatMessage = {
   createdAt: string;
   status?: "complete" | "loading" | "failed";
   errorCode?: string | null;
+  visuals?: AnswerVisuals;
+  quickQuestionMenu?: {
+    sourceQuestionId: string;
+    promptProfile: PromptProfile;
+    subQuestions: QuickSubQuestion[];
+  };
+  truncated?: boolean;
+  maybeTruncated?: boolean;
+  finishReason?: string | null;
   progress?: number;
   loadingLabel?: string;
 };

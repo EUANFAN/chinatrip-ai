@@ -1,8 +1,23 @@
+import type { PromptProfile } from "@/lib/quick-questions/profiles";
+import type { QuickSubQuestion } from "@/lib/quick-questions/menus";
+
+export type AnswerVisuals = {
+  heroAssetId?: string;
+  inlineAssetIds?: string[];
+  cards?: Array<{
+    type: "phrase" | "warning" | "backup" | "checklist";
+    title: string;
+    body: string;
+  }>;
+};
+
 export type CreateChatRequest = {
   message: string;
   language?: "en" | "zh";
   source?: "home" | "share";
   shareId?: string;
+  promptProfile?: PromptProfile;
+  sourceQuestionId?: string;
 };
 
 export type CreateChatResponse = {
@@ -35,6 +50,15 @@ export type ChatDetailMessage = {
   content: string;
   errorCode: string | null;
   errorMessage: string | null;
+  visuals?: AnswerVisuals;
+  quickQuestionMenu?: {
+    sourceQuestionId: string;
+    promptProfile: PromptProfile;
+    subQuestions: QuickSubQuestion[];
+  };
+  truncated?: boolean;
+  maybeTruncated?: boolean;
+  finishReason?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -69,6 +93,9 @@ export type ChatHistoryResponse = {
 
 export type SendMessageRequest = {
   message?: string;
+  promptProfile?: PromptProfile;
+  sourceQuestionId?: string;
+  sourceSubQuestionId?: string;
 };
 
 export type SendMessageResponse = {
@@ -91,6 +118,11 @@ export type SendMessageResponse = {
     content: string;
     errorCode: string | null;
     errorMessage: string | null;
+    visuals?: AnswerVisuals;
+    quickQuestionMenu?: ChatDetailMessage["quickQuestionMenu"];
+    truncated?: boolean;
+    maybeTruncated?: boolean;
+    finishReason?: string | null;
     createdAt: string;
     updatedAt: string;
   };
@@ -161,6 +193,7 @@ export type CreateSharedAnswerResponse = {
     url: string;
     question: string;
     answer: string;
+    visuals?: AnswerVisuals;
     createdAt: string;
   };
 };
@@ -171,6 +204,7 @@ export type SharedAnswerResponse = {
     shareId: string;
     question: string;
     answer: string;
+    visuals?: AnswerVisuals;
     createdAt: string;
     viewCount: number;
   };

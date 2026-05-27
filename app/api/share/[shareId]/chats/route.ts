@@ -9,7 +9,7 @@ import {
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
 import { prisma } from "@/lib/prisma";
-import { invalidateChatHistoryCacheForRecord } from "@/lib/redis";
+import { invalidateChatHistoryCacheForRecord } from "@/lib/cache/redis";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";

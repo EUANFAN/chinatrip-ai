@@ -10,6 +10,12 @@ import {
   getChatHistoryOwner,
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
+import { findQuickQuestionByExactQuestion } from "@/lib/quick-questions/questions";
+import {
+  createQuickQuestionMenuContent,
+  createQuickQuestionMenuMetadata,
+  getQuickQuestionMenu,
+} from "@/lib/quick-questions/menus";
 import { prisma } from "@/lib/prisma";
 import {
   CHAT_HISTORY_CACHE_TTL_SECONDS,
@@ -17,7 +23,7 @@ import {
   invalidateChatHistoryCacheForRecord,
   safeGetJson,
   safeSetJson,
-} from "@/lib/redis";
+} from "@/lib/cache/redis";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -58,12 +64,49 @@ function createPreview(value: string | undefined) {
   return normalized.length > 80 ? `${normalized.slice(0, 80)}...` : normalized;
 }
 
+function logChatHistoryTiming({
+  ownerMs,
+  cacheMs,
+  dbMs,
+  totalMs,
+  cacheHit,
+  ownerType,
+  limit,
+}: {
+  ownerMs: number;
+  cacheMs: number;
+  dbMs: number;
+  totalMs: number;
+  cacheHit: boolean;
+  ownerType: "profile" | "anonymous" | "none";
+  limit: number;
+}) {
+  console.info("chat_history_timing", {
+    ownerMs,
+    cacheMs,
+    dbMs,
+    totalMs,
+    cacheHit,
+    ownerType,
+    limit,
+  });
+}
+
 export async function GET(request: Request) {
+  const startedAt = Date.now();
   const { searchParams } = new URL(request.url);
   const limit = getLimit(searchParams.get("limit"));
+  let ownerMs = 0;
+  let cacheMs = 0;
+  let dbMs = 0;
+  let cacheHit = false;
+  let ownerType: "profile" | "anonymous" | "none" = "none";
 
   try {
+    const ownerStartedAt = Date.now();
     const owner = await getChatHistoryOwner();
+    ownerMs = Date.now() - ownerStartedAt;
+    ownerType = owner?.type ?? "none";
 
     if (!owner) {
       const response: ChatHistoryResponse = {
@@ -71,16 +114,40 @@ export async function GET(request: Request) {
         nextCursor: null,
       };
 
+      logChatHistoryTiming({
+        ownerMs,
+        cacheMs,
+        dbMs,
+        totalMs: Date.now() - startedAt,
+        cacheHit,
+        ownerType,
+        limit,
+      });
+
       return NextResponse.json(response);
     }
 
     const cacheKey = createChatHistoryCacheKey(owner, limit);
+    const cacheStartedAt = Date.now();
     const cachedResponse = await safeGetJson<ChatHistoryResponse>(cacheKey);
+    cacheMs = Date.now() - cacheStartedAt;
 
     if (cachedResponse) {
+      cacheHit = true;
+      logChatHistoryTiming({
+        ownerMs,
+        cacheMs,
+        dbMs,
+        totalMs: Date.now() - startedAt,
+        cacheHit,
+        ownerType,
+        limit,
+      });
+
       return NextResponse.json(cachedResponse);
     }
 
+    const dbStartedAt = Date.now();
     const chats = await prisma.chat.findMany({
       where: {
         status: {
@@ -115,6 +182,7 @@ export async function GET(request: Request) {
       },
       take: limit,
     });
+    dbMs = Date.now() - dbStartedAt;
 
     const response: ChatHistoryResponse = {
       chats: chats.map((chat) => ({
@@ -130,6 +198,16 @@ export async function GET(request: Request) {
     };
 
     await safeSetJson(cacheKey, response, CHAT_HISTORY_CACHE_TTL_SECONDS);
+
+    logChatHistoryTiming({
+      ownerMs,
+      cacheMs,
+      dbMs,
+      totalMs: Date.now() - startedAt,
+      cacheHit,
+      ownerType,
+      limit,
+    });
 
     return NextResponse.json(response);
   } catch (error) {
@@ -164,6 +242,15 @@ export async function POST(request: Request) {
     return apiError("INVALID_LANGUAGE", "Unsupported language.", 400);
   }
 
+  const quickQuestion = findQuickQuestionByExactQuestion(message);
+  const promptProfile =
+    quickQuestion &&
+    body.promptProfile === quickQuestion.promptProfile &&
+    body.sourceQuestionId === quickQuestion.id
+      ? quickQuestion.promptProfile
+      : null;
+  const sourceQuestionId = promptProfile && quickQuestion ? quickQuestion.id : null;
+
   try {
     const identity = await getCurrentIdentity();
     const now = new Date();
@@ -186,8 +273,34 @@ export async function POST(request: Request) {
           status: "complete",
           sequence: 1,
           content: message,
+          metadata: promptProfile
+            ? {
+                source: body.source === "home" ? "home" : "quick_question",
+                promptProfile,
+                sourceQuestionId,
+              }
+            : body.source === "home" || body.source === "share"
+            ? {
+                source: body.source,
+              }
+            : undefined,
         },
       });
+
+      if (quickQuestion && promptProfile) {
+        const menu = getQuickQuestionMenu(quickQuestion.id);
+
+        await tx.message.create({
+          data: {
+            chatId: createdChat.id,
+            role: "assistant",
+            status: "complete",
+            sequence: 2,
+            content: createQuickQuestionMenuContent(menu),
+            metadata: createQuickQuestionMenuMetadata(menu),
+          },
+        });
+      }
 
       return {
         chat: createdChat,

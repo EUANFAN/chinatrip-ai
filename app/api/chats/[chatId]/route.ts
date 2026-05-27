@@ -5,6 +5,11 @@ import {
   createChatOwnerWhere,
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
+import {
+  readAnswerCompletionStatus,
+  readAnswerVisuals,
+  readQuickQuestionMenu,
+} from "@/lib/messages/metadata";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -70,6 +75,11 @@ export async function GET(_request: Request, context: RouteContext) {
           throw new Error(`Unexpected chat message role: ${message.role}`);
         }
 
+        const completionStatus =
+          message.role === "assistant"
+            ? readAnswerCompletionStatus(message.metadata)
+            : null;
+
         return {
           id: message.id,
           chatId: message.chatId,
@@ -79,6 +89,17 @@ export async function GET(_request: Request, context: RouteContext) {
           content: message.content,
           errorCode: message.errorCode,
           errorMessage: message.errorMessage,
+          visuals:
+            message.role === "assistant"
+              ? readAnswerVisuals(message.metadata)
+              : undefined,
+          quickQuestionMenu:
+            message.role === "assistant"
+              ? readQuickQuestionMenu(message.metadata)
+              : undefined,
+          truncated: completionStatus?.truncated,
+          maybeTruncated: completionStatus?.maybeTruncated,
+          finishReason: completionStatus?.finishReason,
           createdAt: message.createdAt.toISOString(),
           updatedAt: message.updatedAt.toISOString(),
         };

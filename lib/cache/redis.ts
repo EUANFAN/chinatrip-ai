@@ -15,6 +15,7 @@ export const redis =
 
 export const CHAT_HISTORY_CACHE_TTL_SECONDS = 60;
 export const SHARE_CACHE_TTL_SECONDS = 60 * 10;
+export const AUTH_OWNER_CACHE_TTL_SECONDS = 60 * 5;
 
 const CHAT_HISTORY_INVALIDATION_LIMITS = [30, 50] as const;
 
@@ -41,6 +42,10 @@ export function createChatHistoryCacheKey(
 
 export function createShareCacheKey(shareId: string) {
   return `share:${shareId}`;
+}
+
+export function createAuthOwnerCacheKey(supabaseUserId: string) {
+  return `auth-owner:${supabaseUserId}`;
 }
 
 export function createChatHistoryOwnerFromRecord(record: {
@@ -128,4 +133,3 @@ export async function invalidateChatHistoryCacheForRecord(record: {
 }) {
   await invalidateChatHistoryCache(createChatHistoryOwnerFromRecord(record));
 }
-

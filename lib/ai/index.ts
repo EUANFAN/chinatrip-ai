@@ -1,7 +1,12 @@
 import "server-only";
 
 import { getConfiguredProvider } from "./config";
-import { TRAVEL_ANSWER_PROMPT_VERSION, buildTravelAnswerMessages } from "./prompts/travel-answer";
+import { selectAnswerVisuals } from "@/lib/answer-assets/visuals";
+import {
+  TRAVEL_ANSWER_PROMPT_VERSION,
+  buildTravelAnswerMessages,
+  resolveTravelPromptProfile,
+} from "./prompts/travel-answer";
 import { deepseekProvider } from "./providers/deepseek";
 import { doubaoProvider } from "./providers/doubao";
 import { mockProvider } from "./providers/mock";
@@ -25,8 +30,9 @@ export async function generateTravelAnswer(
   const language = input.language ?? "en";
   const providerName = getConfiguredProvider();
   const provider = PROVIDERS[providerName];
+  const promptProfile = resolveTravelPromptProfile(input);
 
-  return provider.generateAnswer({
+  const result = await provider.generateAnswer({
     chatId: input.chatId,
     language,
     messages: buildTravelAnswerMessages({
@@ -39,6 +45,21 @@ export async function generateTravelAnswer(
     }),
     promptVersion: TRAVEL_ANSWER_PROMPT_VERSION,
   });
+
+  return {
+    ...result,
+    metadata: {
+      ...(typeof result.metadata === "object" && result.metadata !== null
+        ? result.metadata
+        : {}),
+      promptProfile,
+      visuals: selectAnswerVisuals({
+        profile: promptProfile,
+        question: input.userMessage,
+        answer: result.content,
+      }),
+    },
+  };
 }
 
 export async function* streamTravelAnswer(
@@ -47,6 +68,7 @@ export async function* streamTravelAnswer(
   const language = input.language ?? "en";
   const providerName = getConfiguredProvider();
   const provider = PROVIDERS[providerName];
+  const promptProfile = resolveTravelPromptProfile(input);
   const request = {
     chatId: input.chatId,
     language,
@@ -63,11 +85,49 @@ export async function* streamTravelAnswer(
   };
 
   if (provider.streamAnswer) {
-    yield* provider.streamAnswer(request);
+    for await (const chunk of provider.streamAnswer(request)) {
+      if (chunk.type === "done") {
+        yield {
+          ...chunk,
+          result: {
+            ...chunk.result,
+            metadata: {
+              ...(typeof chunk.result.metadata === "object" &&
+              chunk.result.metadata !== null
+                ? chunk.result.metadata
+                : {}),
+              promptProfile,
+              visuals: selectAnswerVisuals({
+                profile: promptProfile,
+                question: input.userMessage,
+                answer: chunk.result.content,
+              }),
+            },
+          },
+        };
+        continue;
+      }
+
+      yield chunk;
+    }
     return;
   }
 
-  const result = await provider.generateAnswer(request);
+  const rawResult = await provider.generateAnswer(request);
+  const result: GenerateTravelAnswerResult = {
+    ...rawResult,
+    metadata: {
+      ...(typeof rawResult.metadata === "object" && rawResult.metadata !== null
+        ? rawResult.metadata
+        : {}),
+      promptProfile,
+      visuals: selectAnswerVisuals({
+        profile: promptProfile,
+        question: input.userMessage,
+        answer: rawResult.content,
+      }),
+    },
+  };
 
   if (result.content) {
     yield {

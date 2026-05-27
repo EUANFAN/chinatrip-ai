@@ -229,7 +229,10 @@ export function ShareView({
                   </div>
                 </div>
                 <div className="mt-5">
-                  <AnswerContent content={sharedAnswerText} />
+                  <AnswerContent
+                    content={sharedAnswerText}
+                    visuals={share?.visuals}
+                  />
                 </div>
               </article>
             </>

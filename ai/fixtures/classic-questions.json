@@ -1,50 +1,44 @@
 [
   {
-    "id": "payment-alipay-wechat",
+    "id": "payment",
     "language": "en",
-    "question": "How can foreigners use Alipay or WeChat Pay in China?",
-    "category": "payment"
+    "question": "What should I do if I cannot pay after arriving in China?",
+    "category": "payment",
+    "promptProfile": "payment_survival"
   },
   {
-    "id": "apps-before-travel",
+    "id": "internet_apps",
     "language": "en",
-    "question": "What apps should I download before traveling to China?",
-    "category": "apps"
+    "question": "Which apps, SIM, eSIM, and VPN setup do I need before going to China?",
+    "category": "internet_apps",
+    "promptProfile": "internet_apps"
   },
   {
-    "id": "beijing-three-days",
+    "id": "transport",
     "language": "en",
-    "question": "Plan a 3-day Beijing trip for a first-time visitor.",
-    "category": "itinerary"
+    "question": "How do I use airports, metro, taxis, Didi, and high-speed trains in China?",
+    "category": "transport",
+    "promptProfile": "transport_workflow"
   },
   {
-    "id": "didi-taxi",
+    "id": "tickets_booking",
     "language": "en",
-    "question": "How do I take a taxi or use Didi in China?",
-    "category": "transport"
+    "question": "Can I visit attractions directly, or do I need reservations and passport booking?",
+    "category": "tickets_booking",
+    "promptProfile": "tickets_booking"
   },
   {
-    "id": "first-trip-prepare",
+    "id": "language",
     "language": "en",
-    "question": "What should I prepare before my first trip to China?",
-    "category": "preparation"
+    "question": "What Chinese phrases or address cards should I show drivers, hotels, and shop staff?",
+    "category": "language",
+    "promptProfile": "language_cards"
   },
   {
-    "id": "order-food-no-chinese",
+    "id": "emergency",
     "language": "en",
-    "question": "How can I order food in China if I don’t speak Chinese?",
-    "category": "food"
-  },
-  {
-    "id": "shanghai-ten-hours",
-    "language": "en",
-    "question": "I have 10 hours in Shanghai. What can I do?",
-    "category": "itinerary"
-  },
-  {
-    "id": "high-speed-rail",
-    "language": "en",
-    "question": "Can foreign tourists use high-speed trains in China?",
-    "category": "transport"
+    "question": "What should I do if I lose my passport, phone, payment access, or need medical help in China?",
+    "category": "emergency",
+    "promptProfile": "emergency_help"
   }
 ]

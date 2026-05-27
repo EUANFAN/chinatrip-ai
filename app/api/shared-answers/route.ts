@@ -8,8 +8,9 @@ import {
   createChatOwnerWhere,
   getCurrentIdentity,
 } from "@/lib/auth/current-identity";
+import { readAnswerVisuals } from "@/lib/messages/metadata";
 import { prisma } from "@/lib/prisma";
-import { createShareCacheKey, safeDelete } from "@/lib/redis";
+import { createShareCacheKey, safeDelete } from "@/lib/cache/redis";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -87,14 +88,23 @@ export async function POST(request: Request) {
         },
         ...createChatOwnerWhere(identity),
       },
-      include: {
-        anonymousSession: true,
-        profile: true,
+      select: {
+        id: true,
+        profileId: true,
+        anonymousSessionId: true,
         messages: {
           where: {
             id: {
               in: [userMessageId, assistantMessageId],
             },
+          },
+          select: {
+            id: true,
+            role: true,
+            status: true,
+            sequence: true,
+            content: true,
+            metadata: true,
           },
         },
       },
@@ -131,6 +141,13 @@ export async function POST(request: Request) {
         isPublic: true,
         revokedAt: null,
       },
+      select: {
+        id: true,
+        shareSlug: true,
+        question: true,
+        answer: true,
+        createdAt: true,
+      },
     });
 
     const share =
@@ -156,6 +173,7 @@ export async function POST(request: Request) {
         url: createShareUrl(request, share.shareSlug),
         question: share.question,
         answer: share.answer,
+        visuals: readAnswerVisuals(assistantMessage.metadata),
         createdAt: share.createdAt.toISOString(),
       },
     };

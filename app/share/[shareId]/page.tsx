@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShareView } from "@/features/share/ShareView";
-import { getPublicShareBySlug } from "@/lib/share/public-share";
+import { getCachedPublicShareBySlug } from "@/lib/share/cached-public-share";
 
 type SharePageProps = {
   params: Promise<{
@@ -35,7 +35,7 @@ export async function generateMetadata({
   params,
 }: SharePageProps): Promise<Metadata> {
   const { shareId } = await params;
-  const share = await getPublicShareBySlug(shareId);
+  const share = await getCachedPublicShareBySlug(shareId);
 
   if (!share) {
     return {
@@ -76,7 +76,9 @@ export async function generateMetadata({
 
 export default async function SharePage({ params }: SharePageProps) {
   const { shareId } = await params;
-  const share = await getPublicShareBySlug(shareId);
+  const share = await getCachedPublicShareBySlug(shareId, {
+    incrementViewCount: true,
+  });
 
   if (!share) {
     notFound();

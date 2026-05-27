@@ -1,10 +1,10 @@
 "use client";
 
 import {
+  AlertTriangle,
   CarTaxiFront,
-  Clock,
-  Luggage,
-  MapPinned,
+  Languages,
+  Landmark,
   Smartphone,
   WalletCards,
 } from "lucide-react";
@@ -18,47 +18,46 @@ import { useState } from "react";
 import { ApiClientError, apiFetch } from "@/lib/api/client";
 import { CreateChatResponse } from "@/lib/api/types";
 import { useCurrentUser } from "@/features/auth/use-current-user";
+import {
+  HOME_QUICK_QUESTIONS,
+  findQuickQuestionByExactQuestion,
+  type QuickQuestionId,
+} from "@/lib/quick-questions/questions";
 
 const CHAT_START_DELAY_MS = 350;
 
-const classicQuestions = [
+const questionStyles: Record<
+  QuickQuestionId,
   {
-    label: "Alipay & WeChat Pay",
-    question: "How can foreigners use Alipay or WeChat Pay in China?",
+    Icon: typeof WalletCards;
+    colorClass: string;
+  }
+> = {
+  payment: {
     Icon: WalletCards,
-    colorClass: "text-blue-400",
+    colorClass: "text-blue-300",
   },
-  {
-    label: "Essential apps",
-    question: "What apps should I download before traveling to China?",
+  internet_apps: {
     Icon: Smartphone,
-    colorClass: "text-purple-400",
+    colorClass: "text-purple-300",
   },
-  {
-    label: "3-day Beijing trip",
-    question: "Plan a 3-day Beijing trip for a first-time visitor.",
-    Icon: MapPinned,
-    colorClass: "text-emerald-400",
-  },
-  {
-    label: "Taxi & Didi",
-    question: "How do I take a taxi or use Didi in China?",
+  transport: {
     Icon: CarTaxiFront,
-    colorClass: "text-amber-400",
+    colorClass: "text-amber-300",
   },
-  {
-    label: "First trip prep",
-    question: "What should I prepare before my first trip to China?",
-    Icon: Luggage,
-    colorClass: "text-red-400",
+  tickets_booking: {
+    Icon: Landmark,
+    colorClass: "text-emerald-300",
   },
-  {
-    label: "10 hours in Shanghai",
-    question: "I have 10 hours in Shanghai. What can I do?",
-    Icon: Clock,
-    colorClass: "text-cyan-400",
+  language: {
+    Icon: Languages,
+    colorClass: "text-cyan-300",
   },
-];
+  emergency: {
+    Icon: AlertTriangle,
+    colorClass: "text-red-300",
+  },
+};
 
 export function HomeView() {
   const router = useRouter();
@@ -85,9 +84,16 @@ export function HomeView() {
     setErrorMessage(null);
 
     try {
+      const quickQuestion = findQuickQuestionByExactQuestion(trimmedQuestion);
       const response = await apiFetch<CreateChatResponse>("/chats", {
         message: trimmedQuestion,
         source: "home",
+        ...(quickQuestion
+          ? {
+              promptProfile: quickQuestion.promptProfile,
+              sourceQuestionId: quickQuestion.id,
+            }
+          : {}),
       });
 
       await waitForChatStart();
@@ -222,7 +228,10 @@ export function HomeView() {
           ) : null}
 
           <div className="mt-6 flex w-full max-w-[72rem] flex-wrap items-center justify-center gap-2 sm:mt-10 sm:gap-4">
-            {classicQuestions.map((item) => (
+            {HOME_QUICK_QUESTIONS.map((item) => {
+              const { Icon, colorClass } = questionStyles[item.id];
+
+              return (
               <button
                 key={item.label}
                 type="button"
@@ -232,15 +241,21 @@ export function HomeView() {
                     setQuestion(item.question);
                   }
                 }}
-                className="inline-flex h-10 max-w-full cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3.5 text-[0.85rem] font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100 disabled:hover:bg-white/10 sm:h-[44px] sm:gap-2.5 sm:px-5 sm:text-sm"
+                className="inline-flex h-auto min-h-12 max-w-full cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-3.5 py-2 text-left text-[0.85rem] font-medium text-white backdrop-blur-md transition-all hover:scale-105 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/50 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:scale-100 disabled:hover:bg-white/10 sm:min-h-[3.25rem] sm:gap-2.5 sm:px-4 sm:text-sm"
               >
-                <item.Icon
-                  className={`h-[16px] w-[16px] shrink-0 sm:h-[18px] sm:w-[18px] ${item.colorClass}`}
+                <Icon
+                  className={`h-[16px] w-[16px] shrink-0 sm:h-[18px] sm:w-[18px] ${colorClass}`}
                   strokeWidth={2.5}
                 />
-                <span className="truncate">{item.label}</span>
+                <span className="min-w-0">
+                  <span className="block truncate">{item.label}</span>
+                  <span className="block max-w-52 truncate text-[0.72rem] font-medium text-white/68">
+                    {item.subtitle}
+                  </span>
+                </span>
               </button>
-            ))}
+              );
+            })}
           </div>
         </section>
       </div>

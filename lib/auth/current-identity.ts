@@ -6,6 +6,12 @@ import {
   getOrCreateAnonymousSession,
 } from "@/lib/auth/anonymous-session";
 import { prisma } from "@/lib/prisma";
+import {
+  AUTH_OWNER_CACHE_TTL_SECONDS,
+  createAuthOwnerCacheKey,
+  safeGetJson,
+  safeSetJson,
+} from "@/lib/cache/redis";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 
@@ -138,12 +144,27 @@ export async function getChatHistoryOwner() {
   const user = await getSupabaseUserFromCookie();
 
   if (user) {
+    const cacheKey = createAuthOwnerCacheKey(user.id);
+    const cachedProfileId = await safeGetJson<string>(cacheKey);
+
+    if (cachedProfileId) {
+      return {
+        type: "profile" as const,
+        profileId: cachedProfileId,
+      };
+    }
+
     const profile =
       (await prisma.profile.findUnique({
         where: {
           userId: user.id,
         },
+        select: {
+          id: true,
+        },
       })) ?? (await syncProfileFromSupabaseUser(user));
+
+    await safeSetJson(cacheKey, profile.id, AUTH_OWNER_CACHE_TTL_SECONDS);
 
     return {
       type: "profile" as const,
