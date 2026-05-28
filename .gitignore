@@ -10,3 +10,4 @@ coverage
 *.tsbuildinfo
 .playwright-cli
 next-env.d.ts
+supabase/.temp
