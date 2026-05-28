@@ -190,8 +190,13 @@ export async function POST(request: Request, context: RouteContext) {
     return apiError("INTERNAL_ERROR", "Failed to send message.", 500);
   }
 
-  if (!prepared) {
-    return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
+  if ("chatNotFound" in prepared) {
+    return apiError(
+      "CHAT_NOT_FOUND",
+      "Chat not found.",
+      404,
+      process.env.NODE_ENV === "development" ? prepared.diagnostics : undefined,
+    );
   }
 
   if ("noUnansweredUserMessage" in prepared) {

@@ -29,10 +29,17 @@ export type ChatMessageRecord = {
   updatedAt: Date;
 };
 
+export type ChatOwnerMissDiagnostics = {
+  reason: "missing_chat" | "deleted_chat" | "owner_mismatch";
+  identityType: "profile" | "anonymous";
+  identityOwnerId: string | null;
+  chatStatus: string | null;
+  chatOwnerType: "profile" | "anonymous" | null;
+  chatOwnerId: string | null;
+};
+
 export function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(
-    value,
-  );
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -201,6 +208,61 @@ export function resolveQuickSubQuestionMetadata(
   };
 }
 
+function getIdentityType(identity: CurrentIdentity): ChatOwnerMissDiagnostics["identityType"] {
+  return identity.profile ? "profile" : "anonymous";
+}
+
+function getIdentityOwnerId(identity: CurrentIdentity) {
+  return identity.profile?.id ?? identity.anonymousSession?.id ?? null;
+}
+
+async function getChatOwnerMissDiagnostics({
+  tx,
+  chatId,
+  identity,
+}: {
+  tx: Prisma.TransactionClient;
+  chatId: string;
+  identity: CurrentIdentity;
+}): Promise<ChatOwnerMissDiagnostics> {
+  const chat = await tx.chat.findUnique({
+    where: {
+      id: chatId,
+    },
+    select: {
+      id: true,
+      status: true,
+      profileId: true,
+      anonymousSessionId: true,
+    },
+  });
+  const reason = !chat
+    ? "missing_chat"
+    : chat.status === "deleted"
+    ? "deleted_chat"
+    : "owner_mismatch";
+
+  return {
+    reason,
+    identityType: getIdentityType(identity),
+    identityOwnerId: getIdentityOwnerId(identity),
+    chatStatus: chat?.status ?? null,
+    chatOwnerType: chat?.profileId
+      ? "profile"
+      : chat?.anonymousSessionId
+      ? "anonymous"
+      : null,
+    chatOwnerId: chat?.profileId ?? chat?.anonymousSessionId ?? null,
+  };
+}
+
+function logChatOwnerMiss(chatId: string, diagnostics: ChatOwnerMissDiagnostics) {
+  console.warn("chat_message_generation_owner_miss", {
+    chatId,
+    ...diagnostics,
+  });
+}
+
 export function prepareMessageGeneration({
   chatId,
   identity,
@@ -234,7 +296,17 @@ export function prepareMessageGeneration({
     });
 
     if (!chat) {
-      return null;
+      const diagnostics = await getChatOwnerMissDiagnostics({
+        tx,
+        chatId,
+        identity,
+      });
+      logChatOwnerMiss(chatId, diagnostics);
+
+      return {
+        chatNotFound: true as const,
+        diagnostics,
+      };
     }
 
     const existingMessages = chat.messages.map(toChatMessageRecord);

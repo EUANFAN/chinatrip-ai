@@ -61,6 +61,9 @@ const FORCE_BOTTOM_SECOND_PASS_DELAY_MS = 100;
 const AI_QUOTA_EXHAUSTED_CODE = "AI_QUOTA_EXHAUSTED";
 const AI_QUOTA_EXHAUSTED_MESSAGE =
   "Today's AI usage has been used up. Please come back tomorrow.";
+const CHAT_NOT_FOUND_CODE = "CHAT_NOT_FOUND";
+const CHAT_NOT_FOUND_STREAM_MESSAGE =
+  "This chat is no longer available in this browser session. Please start a new chat.";
 const CONTINUE_TRUNCATED_ANSWER_PROMPT =
   "Continue the previous answer from where it stopped.";
 
@@ -1463,6 +1466,23 @@ export function ChatView({ chatId }: { chatId: string }) {
         }
       }
     } catch (error) {
+      let fallbackMessage =
+        error instanceof ApiClientError
+          ? error.message
+          : "Failed to generate answer.";
+      const fallbackCode =
+        error instanceof ApiClientError ? error.code : undefined;
+
+      if (fallbackCode === CHAT_NOT_FOUND_CODE) {
+        try {
+          await apiFetch<ChatDetailResponse>(`/chats/${targetChatId}`);
+        } catch {
+          // The stream and detail endpoints agree this chat is unavailable.
+        }
+
+        fallbackMessage = CHAT_NOT_FOUND_STREAM_MESSAGE;
+      }
+
       updateChatByIdAndCache(targetChatId, (currentChat) => ({
         ...currentChat,
         messages: currentChat.messages.map((chatMessage) =>
@@ -1470,13 +1490,9 @@ export function ChatView({ chatId }: { chatId: string }) {
           chatMessage.id === loadingMessageId
             ? {
                 ...chatMessage,
-                content:
-                  error instanceof ApiClientError
-                    ? error.message
-                    : "Failed to generate answer.",
+                content: fallbackMessage,
                 status: "failed",
-                errorCode:
-                  error instanceof ApiClientError ? error.code : undefined,
+                errorCode: fallbackCode,
                 progress: undefined,
                 loadingLabel: undefined,
               }

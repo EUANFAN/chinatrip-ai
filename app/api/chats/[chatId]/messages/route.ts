@@ -97,8 +97,15 @@ export async function POST(request: Request, context: RouteContext) {
       metadata: quickSubQuestionMetadata.metadata,
     });
 
-    if (!prepared) {
-      return apiError("CHAT_NOT_FOUND", "Chat not found.", 404);
+    if ("chatNotFound" in prepared) {
+      return apiError(
+        "CHAT_NOT_FOUND",
+        "Chat not found.",
+        404,
+        process.env.NODE_ENV === "development"
+          ? prepared.diagnostics
+          : undefined,
+      );
     }
 
     if ("noUnansweredUserMessage" in prepared) {
