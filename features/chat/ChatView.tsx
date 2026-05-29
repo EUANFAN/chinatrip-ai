@@ -538,7 +538,7 @@ function QuickQuestionMenuPanel({
                 {subQuestion.question}
               </span>
             </span>
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#14243A] text-[#FFF8EF] shadow-[0_8px_18px_rgba(20,36,58,0.12)] transition group-hover:scale-105">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8A552B,#14243A)] text-[#FFF8EF] shadow-[0_8px_18px_rgba(20,36,58,0.12)] transition group-hover:scale-105">
               <ArrowRight className="h-4 w-4" />
             </span>
           </button>
